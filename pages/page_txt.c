@@ -105,8 +105,8 @@ lv_obj_t * page_txt(char * filename) {
     
     // 翻页按钮 - 左箭头
     lv_obj_t * btn_prev = lv_btn_create(screen);
-    lv_obj_set_size(btn_prev, 43, 30);
-    lv_obj_align(btn_prev, LV_ALIGN_BOTTOM_RIGHT, -46, 0);
+    lv_obj_set_size(btn_prev, 45, 28);
+    lv_obj_align(btn_prev, LV_ALIGN_BOTTOM_RIGHT, -48, 0);
     lv_obj_t * btn_prev_label = lv_label_create(btn_prev);
     lv_label_set_text(btn_prev_label, "<");
     lv_obj_center(btn_prev_label);
@@ -114,7 +114,7 @@ lv_obj_t * page_txt(char * filename) {
     
     // 翻页按钮 - 右箭头
     lv_obj_t * btn_next = lv_btn_create(screen);
-    lv_obj_set_size(btn_next, 43, 30);  // back按钮100x50的1/2
+    lv_obj_set_size(btn_next, 45, 28);  // back按钮100x50的1/2
     lv_obj_align(btn_next, LV_ALIGN_BOTTOM_RIGHT, 0, 0); 
     lv_obj_t * btn_next_label = lv_label_create(btn_next);
     lv_label_set_text(btn_next_label, ">");
