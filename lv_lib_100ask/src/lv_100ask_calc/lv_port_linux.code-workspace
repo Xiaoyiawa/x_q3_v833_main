@@ -1,0 +1,25 @@
+{
+	"folders": [
+		{
+			"path": "../../.."
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"page_main.h": "c",
+			"lvgl.h": "c",
+			"audio_alsa.h": "c",
+			"imgutils.h": "c",
+			"page_apple.h": "c",
+			"ffplayer.h": "c",
+			"str_utils.h": "c",
+			"page_file_manager.h": "c",
+			"lv_lib_100ask.h": "c",
+			"string.h": "c",
+			"lv_100ask_file_explorer.h": "c",
+			"lv_lib_100ask_conf.h": "c",
+			"audio_ctrl.h": "c",
+			"page_audio.h": "c"
+		}
+	}
+}
