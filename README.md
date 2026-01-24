@@ -1,6 +1,8 @@
 # !此项目为2次制作!
 * 原项目地址
-https://github.com/RobinNotBad/lvgl_v833_q3  
+https://github.com/RobinNotBad/lvgl_v833_q3
+
+## 项目部分是用AI写的
 
 ## 运行平台
 **soc 志强v833 armv7 32bit**  
