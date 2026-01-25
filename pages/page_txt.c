@@ -5,7 +5,7 @@
 #include <string.h>
 
 #define MAX_LINES 11          // 每页最大行数
-#define MAX_CHARS_PER_LINE 25  // 每行最大字符数
+#define MAX_CHARS_PER_LINE 28  // 每行最大字符数
 
 static void back_click(lv_event_t * e);
 static void next_page_click(lv_event_t * e);
@@ -93,7 +93,7 @@ lv_obj_t * page_txt(char * filename) {
     lv_obj_add_event_cb(btn_back, back_click, LV_EVENT_CLICKED, NULL);
     
     lv_obj_t * btn_next = lv_btn_create(screen);
-    lv_obj_set_size(btn_next, 50, 25);
+    lv_obj_set_size(btn_next, 45, 28);
     lv_obj_align(btn_next, LV_ALIGN_BOTTOM_RIGHT, 0, 0);
     lv_obj_t * btn_next_label = lv_label_create(btn_next);
     lv_label_set_text(btn_next_label, ">");
@@ -101,8 +101,8 @@ lv_obj_t * page_txt(char * filename) {
     lv_obj_add_event_cb(btn_next, next_page_click, LV_EVENT_CLICKED, NULL);
     
     lv_obj_t * btn_prev = lv_btn_create(screen);
-    lv_obj_set_size(btn_prev, 50, 25);
-    lv_obj_align(btn_prev, LV_ALIGN_BOTTOM_RIGHT, -53, 0);
+    lv_obj_set_size(btn_prev, 45, 28);
+    lv_obj_align(btn_prev, LV_ALIGN_BOTTOM_RIGHT, -49, 0);
     lv_obj_t * btn_prev_label = lv_label_create(btn_prev);
     lv_label_set_text(btn_prev_label, "<");
     lv_obj_center(btn_prev_label);
