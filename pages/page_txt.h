@@ -14,7 +14,7 @@ extern "C" {
 #include "page_manager.h"
 
 // 添加字体声明
-extern lv_font_t font;  // 从font.c中引入字体
+extern lv_font_t unifont_16;
 
 /*********************
  *      DEFINES

@@ -5,7 +5,7 @@
 #include <string.h>
 
 #define MAX_LINES 12          // 每页最大行数
-#define MAX_CHARS_PER_LINE 28  // 每行最大字符数
+#define MAX_CHARS_PER_LINE 25  // 每行最大字符数
 
 static void back_click(lv_event_t * e);
 static void next_page_click(lv_event_t * e);
@@ -36,7 +36,7 @@ lv_obj_t * page_txt(char * filename) {
         lv_obj_align(error_label, LV_ALIGN_CENTER, 0, 0);
         
         lv_obj_t * btn_back = lv_btn_create(screen);
-        lv_obj_set_size(btn_back, lv_pct(25), lv_pct(12));  // 修改为百分比大小
+        lv_obj_set_size(btn_back, lv_pct(25), lv_pct(12));
         lv_obj_align(btn_back, LV_ALIGN_BOTTOM_LEFT, 0, 0);
         lv_obj_t * btn_back_label = lv_label_create(btn_back);
         lv_label_set_text(btn_back_label, "back");
@@ -58,7 +58,7 @@ lv_obj_t * page_txt(char * filename) {
         lv_obj_align(error_label, LV_ALIGN_CENTER, 0, 0);
         
         lv_obj_t * btn_back = lv_btn_create(screen);
-        lv_obj_set_size(btn_back, lv_pct(25), lv_pct(12));  // 修改为百分比大小
+        lv_obj_set_size(btn_back, lv_pct(25), lv_pct(12));
         lv_obj_align(btn_back, LV_ALIGN_BOTTOM_LEFT, 0, 0);
         lv_obj_t * btn_back_label = lv_label_create(btn_back);
         lv_label_set_text(btn_back_label, "back");
@@ -77,14 +77,15 @@ lv_obj_t * page_txt(char * filename) {
     lv_obj_align(text_label, LV_ALIGN_TOP_MID, 0, 10);
     lv_label_set_long_mode(text_label, LV_LABEL_LONG_WRAP);
     
-    // 添加字体设置
-    lv_obj_set_style_text_font(text_label, &font, 0);
+    // 修改为使用 unifont_16 字体
+    extern lv_font_t unifont_16;  // 声明外部字体
+    lv_obj_set_style_text_font(text_label, &unifont_16, 0);
     
     page_label = lv_label_create(screen);
     lv_obj_align(page_label, LV_ALIGN_BOTTOM_MID, 0, -5);
     
     lv_obj_t * btn_back = lv_btn_create(screen);
-    lv_obj_set_size(btn_back, lv_pct(25), lv_pct(12));  // 修改为百分比大小
+    lv_obj_set_size(btn_back, lv_pct(25), lv_pct(12));
     lv_obj_align(btn_back, LV_ALIGN_BOTTOM_LEFT, 0, 0);
     lv_obj_t * btn_back_label = lv_label_create(btn_back);
     lv_label_set_text(btn_back_label, "back");
