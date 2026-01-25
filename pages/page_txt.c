@@ -4,8 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define MAX_LINES 11
-#define MAX_CHARS_PER_LINE 31
+#define MAX_LINES 12          // 每页最大行数
+#define MAX_CHARS_PER_LINE 27  // 每行最大字符数
 
 static void back_click(lv_event_t * e);
 static void next_page_click(lv_event_t * e);
@@ -19,7 +19,7 @@ static char * file_content = NULL;
 static long file_size = 0;
 static int current_page = 0;
 static int total_pages = 0;
-static char display_buffer[(MAX_LINES * (MAX_CHARS_PER_LINE + 1)) + 10];
+static char display_buffer[MAX_LINES * (MAX_CHARS_PER_LINE + 1) + 1];  // 加1用于换行符
 
 lv_obj_t * page_txt(char * filename) {
     screen = lv_obj_create(lv_scr_act());
@@ -32,7 +32,7 @@ lv_obj_t * page_txt(char * filename) {
     FILE *fp = fopen(filename, "r");
     if (fp == NULL) {
         lv_obj_t * error_label = lv_label_create(screen);
-        lv_label_set_text(error_label, "无法打开文件");
+        lv_label_set_text(error_label, "error: can't open this file");
         lv_obj_align(error_label, LV_ALIGN_CENTER, 0, 0);
         
         lv_obj_t * btn_back = lv_btn_create(screen);
@@ -54,7 +54,7 @@ lv_obj_t * page_txt(char * filename) {
     if (file_content == NULL) {
         fclose(fp);
         lv_obj_t * error_label = lv_label_create(screen);
-        lv_label_set_text(error_label, "内存不足");
+        lv_label_set_text(error_label, "error:Out of memory!");
         lv_obj_align(error_label, LV_ALIGN_CENTER, 0, 0);
         
         lv_obj_t * btn_back = lv_btn_create(screen);
@@ -72,22 +72,13 @@ lv_obj_t * page_txt(char * filename) {
     file_content[read_size] = '\0';
     fclose(fp);
     
-    int total_chars = 0;
-    for (long i = 0; i < file_size; i++) {
-        if (file_content[i] != '\n' && file_content[i] != '\r') {
-            total_chars++;
-        }
-    }
-    
-    int chars_per_page = MAX_LINES * MAX_CHARS_PER_LINE;
-    total_pages = (total_chars + chars_per_page - 1) / chars_per_page;
-    if (total_pages == 0) total_pages = 1;
-    
     text_label = lv_label_create(screen);
-    lv_obj_set_size(text_label, 235, 205);
+    lv_obj_set_width(text_label, lv_pct(95));
     lv_obj_align(text_label, LV_ALIGN_TOP_MID, 0, 10);
     lv_label_set_long_mode(text_label, LV_LABEL_LONG_WRAP);
-    lv_obj_set_style_text_align(text_label, LV_TEXT_ALIGN_LEFT, 0);
+    
+    // 添加字体设置
+    lv_obj_set_style_text_font(text_label, &font, 0);
     
     page_label = lv_label_create(screen);
     lv_obj_align(page_label, LV_ALIGN_BOTTOM_MID, 0, -5);
@@ -101,7 +92,7 @@ lv_obj_t * page_txt(char * filename) {
     lv_obj_add_event_cb(btn_back, back_click, LV_EVENT_CLICKED, NULL);
     
     lv_obj_t * btn_next = lv_btn_create(screen);
-    lv_obj_set_size(btn_next, 45, 27);
+    lv_obj_set_size(btn_next, 45, 28);
     lv_obj_align(btn_next, LV_ALIGN_BOTTOM_RIGHT, 0, 0);
     lv_obj_t * btn_next_label = lv_label_create(btn_next);
     lv_label_set_text(btn_next_label, ">");
@@ -109,12 +100,78 @@ lv_obj_t * page_txt(char * filename) {
     lv_obj_add_event_cb(btn_next, next_page_click, LV_EVENT_CLICKED, NULL);
     
     lv_obj_t * btn_prev = lv_btn_create(screen);
-    lv_obj_set_size(btn_prev, 45, 27);
+    lv_obj_set_size(btn_prev, 45, 28);
     lv_obj_align(btn_prev, LV_ALIGN_BOTTOM_RIGHT, -48, 0);
     lv_obj_t * btn_prev_label = lv_label_create(btn_prev);
     lv_label_set_text(btn_prev_label, "<");
     lv_obj_center(btn_prev_label);
     lv_obj_add_event_cb(btn_prev, prev_page_click, LV_EVENT_CLICKED, NULL);
+    
+    // 计算总行数
+    long pos = 0;
+    int total_lines = 0;
+    while (pos < file_size) {
+        int line_length = 0;
+        int in_word = 0;
+        
+        // 计算一行的长度
+        while (pos < file_size && line_length < MAX_CHARS_PER_LINE) {
+            char c = file_content[pos];
+            
+            if (c == '\n' || c == '\r') {
+                // 遇到换行符，结束当前行
+                total_lines++;
+                pos++;
+                // 跳过连续的换行符
+                while (pos < file_size && (file_content[pos] == '\n' || file_content[pos] == '\r')) {
+                    pos++;
+                    total_lines++;  // 每个换行符都算一行
+                }
+                break;
+            }
+            
+            line_length++;
+            pos++;
+            
+            // 检查空格或标点，可以作为断行点
+            if (c == ' ' || c == '\t' || c == ',' || c == '.' || c == ';' || c == ':' || 
+                c == '!' || c == '?' || c == ')' || c == ']' || c == '}') {
+                in_word = 0;
+            } else {
+                in_word = 1;
+            }
+            
+            // 如果到达行尾但还在单词中间，回退到单词开始
+            if (line_length >= MAX_CHARS_PER_LINE && in_word) {
+                // 向前查找单词开始
+                int word_start = pos - 1;
+                while (word_start > 0 && word_start > pos - line_length) {
+                    char prev_c = file_content[word_start];
+                    if (prev_c == ' ' || prev_c == '\t' || prev_c == '\n' || prev_c == '\r' ||
+                        prev_c == ',' || prev_c == '.' || prev_c == ';' || prev_c == ':' || 
+                        prev_c == '!' || prev_c == '?' || prev_c == '(' || prev_c == '[' || prev_c == '{' ||
+                        prev_c == ')' || prev_c == ']' || prev_c == '}') {
+                        break;
+                    }
+                    word_start--;
+                }
+                
+                if (word_start > pos - line_length) {
+                    pos = word_start + 1;
+                }
+                break;
+            }
+        }
+        
+        // 如果一行结束了（非换行符结束）
+        if (line_length > 0 && line_length <= MAX_CHARS_PER_LINE) {
+            total_lines++;
+        }
+    }
+    
+    // 计算总页数
+    total_pages = (total_lines + MAX_LINES - 1) / MAX_LINES;
+    if (total_pages == 0) total_pages = 1;
     
     update_display();
     
@@ -126,59 +183,141 @@ static void update_display(void) {
     
     memset(display_buffer, 0, sizeof(display_buffer));
     
-    int chars_per_page = MAX_LINES * MAX_CHARS_PER_LINE;
-    int start_char_index = current_page * chars_per_page;
     int buffer_index = 0;
     int line_count = 0;
-    int char_in_line = 0;
-    int total_chars_processed = 0;
+    long pos = 0;
+    int current_line = 0;
     
-    for (long i = 0; i < file_size && line_count < MAX_LINES; i++) {
-        char c = file_content[i];
+    // 跳过前面的行，直到到达当前页的开始
+    while (pos < file_size && current_line < current_page * MAX_LINES) {
+        int line_length = 0;
+        int in_word = 0;
         
-        if (c == '\n' || c == '\r') {
-            continue;
+        while (pos < file_size && line_length < MAX_CHARS_PER_LINE) {
+            char c = file_content[pos];
+            
+            if (c == '\n' || c == '\r') {
+                current_line++;
+                pos++;
+                while (pos < file_size && (file_content[pos] == '\n' || file_content[pos] == '\r')) {
+                    pos++;
+                    current_line++;
+                }
+                break;
+            }
+            
+            line_length++;
+            pos++;
+            
+            if (c == ' ' || c == '\t' || c == ',' || c == '.' || c == ';' || c == ':' || 
+                c == '!' || c == '?' || c == ')' || c == ']' || c == '}') {
+                in_word = 0;
+            } else {
+                in_word = 1;
+            }
+            
+            if (line_length >= MAX_CHARS_PER_LINE && in_word) {
+                int word_start = pos - 1;
+                while (word_start > 0 && word_start > pos - line_length) {
+                    char prev_c = file_content[word_start];
+                    if (prev_c == ' ' || prev_c == '\t' || prev_c == '\n' || prev_c == '\r' ||
+                        prev_c == ',' || prev_c == '.' || prev_c == ';' || prev_c == ':' || 
+                        prev_c == '!' || prev_c == '?' || prev_c == '(' || prev_c == '[' || prev_c == '{' ||
+                        prev_c == ')' || prev_c == ']' || prev_c == '}') {
+                        break;
+                    }
+                    word_start--;
+                }
+                
+                if (word_start > pos - line_length) {
+                    pos = word_start + 1;
+                }
+                break;
+            }
         }
         
-        total_chars_processed++;
-        
-        if (total_chars_processed > start_char_index) {
-            display_buffer[buffer_index++] = c;
-            char_in_line++;
-            
-            if (char_in_line >= MAX_CHARS_PER_LINE) {
-                if (line_count < MAX_LINES - 1) {
-                    display_buffer[buffer_index++] = '\n';
-                }
-                line_count++;
-                char_in_line = 0;
-                
-                if (line_count >= MAX_LINES) {
-                    break;
-                }
-            }
+        if (line_length > 0 && line_length <= MAX_CHARS_PER_LINE) {
+            current_line++;
         }
     }
     
-    if (char_in_line > 0 && char_in_line < MAX_CHARS_PER_LINE) {
-        while (char_in_line < MAX_CHARS_PER_LINE && buffer_index < sizeof(display_buffer) - 1) {
-            display_buffer[buffer_index++] = ' ';
-            char_in_line++;
+    // 填充当前页的内容
+    while (pos < file_size && line_count < MAX_LINES) {
+        int line_length = 0;
+        int line_start = buffer_index;
+        int in_word = 0;
+        
+        while (pos < file_size && line_length < MAX_CHARS_PER_LINE) {
+            char c = file_content[pos];
+            
+            if (c == '\n' || c == '\r') {
+                // 填充剩余空格
+                while (line_length < MAX_CHARS_PER_LINE) {
+                    display_buffer[buffer_index++] = ' ';
+                    line_length++;
+                }
+                pos++;
+                while (pos < file_size && (file_content[pos] == '\n' || file_content[pos] == '\r')) {
+                    pos++;
+                }
+                break;
+            }
+            
+            display_buffer[buffer_index++] = c;
+            line_length++;
+            pos++;
+            
+            if (c == ' ' || c == '\t' || c == ',' || c == '.' || c == ';' || c == ':' || 
+                c == '!' || c == '?' || c == ')' || c == ']' || c == '}') {
+                in_word = 0;
+            } else {
+                in_word = 1;
+            }
+            
+            if (line_length >= MAX_CHARS_PER_LINE && in_word) {
+                // 回退到单词开始
+                int word_start = pos - 1;
+                while (word_start > pos - line_length) {
+                    char prev_c = file_content[word_start];
+                    if (prev_c == ' ' || prev_c == '\t' || prev_c == '\n' || prev_c == '\r' ||
+                        prev_c == ',' || prev_c == '.' || prev_c == ';' || prev_c == ':' || 
+                        prev_c == '!' || prev_c == '?' || prev_c == '(' || prev_c == '[' || prev_c == '{' ||
+                        prev_c == ')' || prev_c == ']' || prev_c == '}') {
+                        break;
+                    }
+                    word_start--;
+                }
+                
+                if (word_start > pos - line_length) {
+                    // 回退缓冲区指针
+                    buffer_index = line_start + (word_start - (pos - line_length));
+                    // 填充当前行剩余部分为空格
+                    while (line_length < MAX_CHARS_PER_LINE) {
+                        display_buffer[buffer_index++] = ' ';
+                        line_length++;
+                    }
+                    // 重置位置到单词开始
+                    pos = word_start + 1;
+                }
+                break;
+            }
         }
+        
+        // 填充行尾空格
+        while (line_length < MAX_CHARS_PER_LINE) {
+            display_buffer[buffer_index++] = ' ';
+            line_length++;
+        }
+        
+        // 添加换行符（如果不是最后一行）
+        if (line_count < MAX_LINES - 1) {
+            display_buffer[buffer_index++] = '\n';
+        }
+        
         line_count++;
     }
     
-    if (line_count < MAX_LINES) {
-        for (int i = line_count; i < MAX_LINES; i++) {
-            if (i > 0) {
-                display_buffer[buffer_index++] = '\n';
-            }
-            for (int j = 0; j < MAX_CHARS_PER_LINE && buffer_index < sizeof(display_buffer) - 1; j++) {
-                display_buffer[buffer_index++] = ' ';
-            }
-        }
-    }
-    
+    // 确保字符串以NULL结尾
     display_buffer[buffer_index] = '\0';
     
     lv_label_set_text(text_label, display_buffer);
