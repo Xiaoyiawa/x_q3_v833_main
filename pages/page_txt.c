@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define MAX_LINES 12          // 每页最大行数
+#define MAX_LINES 11          // 每页最大行数
 #define MAX_CHARS_PER_LINE 25  // 每行最大字符数
 
 static void back_click(lv_event_t * e);
