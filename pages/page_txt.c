@@ -5,7 +5,7 @@
 #include <string.h>
 
 #define MAX_LINES 12          // 每页最大行数
-#define MAX_CHARS_PER_LINE 27  // 每行最大字符数
+#define MAX_CHARS_PER_LINE 28  // 每行最大字符数
 
 static void back_click(lv_event_t * e);
 static void next_page_click(lv_event_t * e);
@@ -32,11 +32,11 @@ lv_obj_t * page_txt(char * filename) {
     FILE *fp = fopen(filename, "r");
     if (fp == NULL) {
         lv_obj_t * error_label = lv_label_create(screen);
-        lv_label_set_text(error_label, "error: can't open this file");
+        lv_label_set_text(error_label, "无法打开文件");
         lv_obj_align(error_label, LV_ALIGN_CENTER, 0, 0);
         
         lv_obj_t * btn_back = lv_btn_create(screen);
-        lv_obj_set_size(btn_back, lv_pct(25), lv_pct(12));
+        lv_obj_set_size(btn_back, lv_pct(25), lv_pct(12));  // 修改为百分比大小
         lv_obj_align(btn_back, LV_ALIGN_BOTTOM_LEFT, 0, 0);
         lv_obj_t * btn_back_label = lv_label_create(btn_back);
         lv_label_set_text(btn_back_label, "back");
@@ -54,11 +54,11 @@ lv_obj_t * page_txt(char * filename) {
     if (file_content == NULL) {
         fclose(fp);
         lv_obj_t * error_label = lv_label_create(screen);
-        lv_label_set_text(error_label, "error:Out of memory!");
+        lv_label_set_text(error_label, "内存不足");
         lv_obj_align(error_label, LV_ALIGN_CENTER, 0, 0);
         
         lv_obj_t * btn_back = lv_btn_create(screen);
-        lv_obj_set_size(btn_back, lv_pct(25), lv_pct(12));
+        lv_obj_set_size(btn_back, lv_pct(25), lv_pct(12));  // 修改为百分比大小
         lv_obj_align(btn_back, LV_ALIGN_BOTTOM_LEFT, 0, 0);
         lv_obj_t * btn_back_label = lv_label_create(btn_back);
         lv_label_set_text(btn_back_label, "back");
@@ -84,7 +84,7 @@ lv_obj_t * page_txt(char * filename) {
     lv_obj_align(page_label, LV_ALIGN_BOTTOM_MID, 0, -5);
     
     lv_obj_t * btn_back = lv_btn_create(screen);
-    lv_obj_set_size(btn_back, lv_pct(25), lv_pct(12));
+    lv_obj_set_size(btn_back, lv_pct(25), lv_pct(12));  // 修改为百分比大小
     lv_obj_align(btn_back, LV_ALIGN_BOTTOM_LEFT, 0, 0);
     lv_obj_t * btn_back_label = lv_label_create(btn_back);
     lv_label_set_text(btn_back_label, "back");
@@ -92,7 +92,7 @@ lv_obj_t * page_txt(char * filename) {
     lv_obj_add_event_cb(btn_back, back_click, LV_EVENT_CLICKED, NULL);
     
     lv_obj_t * btn_next = lv_btn_create(screen);
-    lv_obj_set_size(btn_next, 45, 28);
+    lv_obj_set_size(btn_next, 50, 25);
     lv_obj_align(btn_next, LV_ALIGN_BOTTOM_RIGHT, 0, 0);
     lv_obj_t * btn_next_label = lv_label_create(btn_next);
     lv_label_set_text(btn_next_label, ">");
@@ -100,14 +100,14 @@ lv_obj_t * page_txt(char * filename) {
     lv_obj_add_event_cb(btn_next, next_page_click, LV_EVENT_CLICKED, NULL);
     
     lv_obj_t * btn_prev = lv_btn_create(screen);
-    lv_obj_set_size(btn_prev, 45, 28);
-    lv_obj_align(btn_prev, LV_ALIGN_BOTTOM_RIGHT, -48, 0);
+    lv_obj_set_size(btn_prev, 50, 25);
+    lv_obj_align(btn_prev, LV_ALIGN_BOTTOM_RIGHT, -53, 0);
     lv_obj_t * btn_prev_label = lv_label_create(btn_prev);
     lv_label_set_text(btn_prev_label, "<");
     lv_obj_center(btn_prev_label);
     lv_obj_add_event_cb(btn_prev, prev_page_click, LV_EVENT_CLICKED, NULL);
     
-    // 计算总行数
+    // 计算总行数 - 将换行符也算作一行
     long pos = 0;
     int total_lines = 0;
     while (pos < file_size) {
@@ -122,7 +122,7 @@ lv_obj_t * page_txt(char * filename) {
                 // 遇到换行符，结束当前行
                 total_lines++;
                 pos++;
-                // 跳过连续的换行符
+                // 每个换行符都算一行
                 while (pos < file_size && (file_content[pos] == '\n' || file_content[pos] == '\r')) {
                     pos++;
                     total_lines++;  // 每个换行符都算一行
@@ -197,11 +197,11 @@ static void update_display(void) {
             char c = file_content[pos];
             
             if (c == '\n' || c == '\r') {
-                current_line++;
+                current_line++;  // 换行符算作一行
                 pos++;
                 while (pos < file_size && (file_content[pos] == '\n' || file_content[pos] == '\r')) {
                     pos++;
-                    current_line++;
+                    current_line++;  // 每个换行符都算一行
                 }
                 break;
             }
@@ -257,8 +257,21 @@ static void update_display(void) {
                     line_length++;
                 }
                 pos++;
+                line_count++;  // 换行符算作一行
                 while (pos < file_size && (file_content[pos] == '\n' || file_content[pos] == '\r')) {
                     pos++;
+                    // 如果是新的一行，且还没有达到最大行数，添加空行
+                    if (line_count < MAX_LINES) {
+                        // 添加换行符
+                        if (line_count > 0) {
+                            display_buffer[buffer_index++] = '\n';
+                        }
+                        // 添加新的一行（25个空格）
+                        for (int i = 0; i < MAX_CHARS_PER_LINE && buffer_index < sizeof(display_buffer) - 1; i++) {
+                            display_buffer[buffer_index++] = ' ';
+                        }
+                        line_count++;
+                    }
                 }
                 break;
             }
@@ -303,18 +316,36 @@ static void update_display(void) {
             }
         }
         
-        // 填充行尾空格
-        while (line_length < MAX_CHARS_PER_LINE) {
-            display_buffer[buffer_index++] = ' ';
-            line_length++;
+        // 填充行尾空格（如果是因为字符数达到限制而结束）
+        if (line_length < MAX_CHARS_PER_LINE && pos < file_size && 
+            file_content[pos] != '\n' && file_content[pos] != '\r') {
+            while (line_length < MAX_CHARS_PER_LINE) {
+                display_buffer[buffer_index++] = ' ';
+                line_length++;
+            }
         }
         
         // 添加换行符（如果不是最后一行）
-        if (line_count < MAX_LINES - 1) {
+        if (line_count < MAX_LINES - 1 && line_length == MAX_CHARS_PER_LINE) {
             display_buffer[buffer_index++] = '\n';
         }
         
-        line_count++;
+        if (line_length == MAX_CHARS_PER_LINE) {
+            line_count++;
+        }
+    }
+    
+    // 如果行数不足，用空行补齐
+    if (line_count < MAX_LINES) {
+        for (int i = line_count; i < MAX_LINES; i++) {
+            if (i > 0) {
+                display_buffer[buffer_index++] = '\n';
+            }
+            // 添加25个空格
+            for (int j = 0; j < MAX_CHARS_PER_LINE && buffer_index < sizeof(display_buffer) - 1; j++) {
+                display_buffer[buffer_index++] = ' ';
+            }
+        }
     }
     
     // 确保字符串以NULL结尾
