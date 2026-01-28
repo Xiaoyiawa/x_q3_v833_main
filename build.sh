@@ -1,3 +1,6 @@
+make clean
+sleep 2
+
 export TOOLCHAIN=/home/xiaoyi/gcc
 export PATH=$PATH:$TOOLCHAIN/bin
 export CC=$TOOLCHAIN/bin/arm-unknown-linux-musleabihf-gcc
