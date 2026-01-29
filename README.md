@@ -4,7 +4,8 @@ https://github.com/RobinNotBad/lvgl_v833_q3
 
 ## 项目部分是用AI写的
 **代码写的很神奇**
-~~能跑起来就行嘻嘻~~
+~~能跑起来就行嘻嘻~~ <br>
+*有点不想写了*
 
 ## 运行平台
 **soc 志强v833 armv7 32bit**  
@@ -17,5 +18,4 @@ https://github.com/RobinNotBad/lvgl_v833_q3
 > 例如armhf musl gcc编译器
 * 将项目文件中build.sh的文件路径改为你的编译器路径<br>
 * 运行./build.sh等待编译完成
-* 编译出来的程序应为arm 32bit
 
