@@ -3,6 +3,8 @@
 https://github.com/RobinNotBad/lvgl_v833_q3
 
 ## 项目部分是用AI写的
+**代码写的很神奇**
+**~~能跑起来就行~~**
 
 ## 运行平台
 **soc 志强v833 armv7 32bit**  
