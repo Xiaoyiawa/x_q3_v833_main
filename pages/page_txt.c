@@ -1,4 +1,4 @@
-// page_txt.c
+// 部分用deepseek写的，代码写的惨不忍睹
 #include "page_txt.h"
 #include <stdio.h>
 #include <stdlib.h>
