@@ -19,7 +19,8 @@
 			"lv_100ask_file_explorer.h": "c",
 			"lv_lib_100ask_conf.h": "c",
 			"audio_ctrl.h": "c",
-			"page_audio.h": "c"
+			"page_audio.h": "c",
+			"lv_freetype.h": "c"
 		}
 	}
 }

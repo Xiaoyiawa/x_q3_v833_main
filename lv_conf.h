@@ -81,7 +81,7 @@
 #define LV_DISP_DEF_REFR_PERIOD 25      /*[ms]*/
 
 /*Input device read period in milliseconds*/
-#define LV_INDEV_DEF_READ_PERIOD 25     /*[ms]*/
+#define LV_INDEV_DEF_READ_PERIOD 10     /*[ms]*/
 
 /*Use a custom tick source that tells the elapsed time in milliseconds.
  *It removes the need to manually update the tick with `lv_tick_inc()`)*/
@@ -204,21 +204,21 @@
     *LV_LOG_LEVEL_ERROR       Only critical issue, when the system may fail
     *LV_LOG_LEVEL_USER        Only logs added by the user
     *LV_LOG_LEVEL_NONE        Do not log anything*/
-    #define LV_LOG_LEVEL LV_LOG_LEVEL_INFO
+    #define LV_LOG_LEVEL LV_LOG_LEVEL_WARN
 
     /*1: Print the log with 'printf';
     *0: User need to register a callback with `lv_log_register_print_cb()`*/
     #define LV_LOG_PRINTF 1
 
     /*Enable/disable LV_LOG_TRACE in modules that produces a huge number of logs*/
-    #define LV_LOG_TRACE_MEM        1
-    #define LV_LOG_TRACE_TIMER      1
-    #define LV_LOG_TRACE_INDEV      1
-    #define LV_LOG_TRACE_DISP_REFR  1
-    #define LV_LOG_TRACE_EVENT      1
-    #define LV_LOG_TRACE_OBJ_CREATE 1
-    #define LV_LOG_TRACE_LAYOUT     1
-    #define LV_LOG_TRACE_ANIM       1
+    #define LV_LOG_TRACE_MEM        0
+    #define LV_LOG_TRACE_TIMER      0
+    #define LV_LOG_TRACE_INDEV      0
+    #define LV_LOG_TRACE_DISP_REFR  0
+    #define LV_LOG_TRACE_EVENT      0
+    #define LV_LOG_TRACE_OBJ_CREATE 0
+    #define LV_LOG_TRACE_LAYOUT     0
+    #define LV_LOG_TRACE_ANIM       0
 
 #endif  /*LV_USE_LOG*/
 
@@ -230,7 +230,7 @@
  *If LV_USE_LOG is enabled an error message will be printed on failure*/
 #define LV_USE_ASSERT_NULL          1   /*Check if the parameter is NULL. (Very fast, recommended)*/
 #define LV_USE_ASSERT_MALLOC        1   /*Checks is the memory is successfully allocated or no. (Very fast, recommended)*/
-#define LV_USE_ASSERT_STYLE         0   /*Check if the styles are properly initialized. (Very fast, recommended)*/
+#define LV_USE_ASSERT_STYLE         1   /*Check if the styles are properly initialized. (Very fast, recommended)*/
 #define LV_USE_ASSERT_MEM_INTEGRITY 0   /*Check the integrity of `lv_mem` after critical operations. (Slow)*/
 #define LV_USE_ASSERT_OBJ           0   /*Check the object's type and existence (e.g. not deleted). (Slow)*/
 
@@ -252,7 +252,7 @@
  * Requires LV_MEM_CUSTOM = 0*/
 #define LV_USE_MEM_MONITOR 0
 #if LV_USE_MEM_MONITOR
-    #define LV_USE_MEM_MONITOR_POS LV_ALIGN_TOP_LEFT
+    #define LV_USE_MEM_MONITOR_POS LV_ALIGN_TOP_RIGHT
 #endif
 
 /*1: Draw random colored rectangles over the redrawn areas*/
@@ -326,16 +326,16 @@
 /*Montserrat fonts with ASCII range and some symbols using bpp = 4
  *https://fonts.google.com/specimen/Montserrat*/
 #define LV_FONT_MONTSERRAT_8  1
-#define LV_FONT_MONTSERRAT_10 1
-#define LV_FONT_MONTSERRAT_12 1
+#define LV_FONT_MONTSERRAT_10 0
+#define LV_FONT_MONTSERRAT_12 0
 #define LV_FONT_MONTSERRAT_14 1
-#define LV_FONT_MONTSERRAT_16 0
+#define LV_FONT_MONTSERRAT_16 1
 #define LV_FONT_MONTSERRAT_18 0
 #define LV_FONT_MONTSERRAT_20 0
 #define LV_FONT_MONTSERRAT_22 0
-#define LV_FONT_MONTSERRAT_24 0
+#define LV_FONT_MONTSERRAT_24 1
 #define LV_FONT_MONTSERRAT_26 0
-#define LV_FONT_MONTSERRAT_28 0
+#define LV_FONT_MONTSERRAT_28 1
 #define LV_FONT_MONTSERRAT_30 0
 #define LV_FONT_MONTSERRAT_32 0
 #define LV_FONT_MONTSERRAT_34 0
@@ -345,7 +345,7 @@
 #define LV_FONT_MONTSERRAT_42 0
 #define LV_FONT_MONTSERRAT_44 0
 #define LV_FONT_MONTSERRAT_46 0
-#define LV_FONT_MONTSERRAT_48 0
+#define LV_FONT_MONTSERRAT_48 1
 
 /*Demonstrate special features*/
 #define LV_FONT_MONTSERRAT_12_SUBPX      0
@@ -354,7 +354,7 @@
 #define LV_FONT_SIMSUN_16_CJK            0  /*1000 most common CJK radicals*/
 
 /*Pixel perfect monospace fonts*/
-#define LV_FONT_UNSCII_8  1
+#define LV_FONT_UNSCII_8  0
 #define LV_FONT_UNSCII_16 0
 
 /*Optionally declare custom fonts here.
@@ -368,7 +368,7 @@
 /*Enable handling large font and/or fonts with a lot of characters.
  *The limit depends on the font size, font face and bpp.
  *Compiler error will be triggered if a font needs it.*/
-#define LV_FONT_FMT_TXT_LARGE 1
+#define LV_FONT_FMT_TXT_LARGE 0
 
 /*Enables/disables support for compressed fonts.*/
 #define LV_USE_FONT_COMPRESSED 0
@@ -617,10 +617,10 @@
 #define LV_USE_QRCODE 0
 
 /*FreeType library*/
-#define LV_USE_FREETYPE 0
+#define LV_USE_FREETYPE 1
 #if LV_USE_FREETYPE
     /*Memory used by FreeType to cache characters [bytes] (-1: no caching)*/
-    #define LV_FREETYPE_CACHE_SIZE (16 * 1024)
+    #define LV_FREETYPE_CACHE_SIZE (1024 * 1024)
     #if LV_FREETYPE_CACHE_SIZE >= 0
         /* 1: bitmap cache use the sbit cache, 0:bitmap cache use the image cache. */
         /* sbit cache:it is much more memory efficient for small bitmaps(font size < 256) */

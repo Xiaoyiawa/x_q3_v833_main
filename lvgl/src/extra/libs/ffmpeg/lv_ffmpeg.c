@@ -78,7 +78,7 @@ static void ffmpeg_close(struct ffmpeg_context_s * ffmpeg_ctx);
 static void ffmpeg_close_src_ctx(struct ffmpeg_context_s * ffmpeg_ctx);
 static void ffmpeg_close_dst_ctx(struct ffmpeg_context_s * ffmpeg_ctx);
 static int ffmpeg_image_allocate(struct ffmpeg_context_s * ffmpeg_ctx);
-static int ffmpeg_get_img_header(const char * path, lv_img_header_t * header);
+
 static int ffmpeg_get_frame_refr_period(struct ffmpeg_context_s * ffmpeg_ctx);
 static uint8_t * ffmpeg_get_img_data(struct ffmpeg_context_s * ffmpeg_ctx);
 static int ffmpeg_update_next_frame(struct ffmpeg_context_s * ffmpeg_ctx);
@@ -574,7 +574,7 @@ static int ffmpeg_open_codec_context(int * stream_idx,
     return 0;
 }
 
-static int ffmpeg_get_img_header(const char * filepath,
+int ffmpeg_get_img_header(const char * filepath,
                                  lv_img_header_t * header)
 {
     int ret = -1;

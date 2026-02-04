@@ -346,6 +346,10 @@ enum {
     _LV_STR_SYMBOL_DUMMY,
 };
 
+#define CUSTOM_SYMBOL_BACK "\uF053"
+#define CUSTOM_SYMBOL_CYCLE "\uF021"
+#define CUSTOM_SYMBOL_BAN "\uF05E"
+
 #ifdef __cplusplus
 } /*extern "C"*/
 #endif

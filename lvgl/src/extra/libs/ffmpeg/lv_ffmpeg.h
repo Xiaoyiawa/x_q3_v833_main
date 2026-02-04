@@ -87,6 +87,7 @@ void lv_ffmpeg_player_set_cmd(lv_obj_t * obj, lv_ffmpeg_player_cmd_t cmd);
  */
 void lv_ffmpeg_player_set_auto_restart(lv_obj_t * obj, bool en);
 
+int ffmpeg_get_img_header(const char * path, lv_img_header_t * header);
 /*=====================
  * Other functions
  *====================*/

@@ -18,7 +18,7 @@ lv_obj_t * page_file_manager()
     lv_obj_set_size(btn_back, lv_pct(25), lv_pct(12));
     lv_obj_align(btn_back, LV_ALIGN_TOP_LEFT, 0, 0);
     lv_obj_t * btn_back_label = lv_label_create(btn_back);
-    lv_label_set_text(btn_back_label, "back");
+    lv_label_set_text(btn_back_label, CUSTOM_SYMBOL_BACK "");
     lv_obj_center(btn_back_label);
     lv_obj_add_event_cb(btn_back, back_click, LV_EVENT_CLICKED, NULL);
 
@@ -47,14 +47,6 @@ static void explorer_event_handler(lv_event_t * e)
         if(str_end_with(file_name, ".mp3", false) || str_end_with(file_name, ".wav", false) || str_end_with(file_name, ".ogg", false) ||
            str_end_with(file_name, ".m4a", false))
             page_open(page_audio(&file_name), NULL);
-        
-        if(str_end_with(file_name, ".txt", false)) {
-            page_open(page_txt(&file_name), NULL);
-        }
-        
-        if(str_end_with(file_name, ".json", false)) {
-            page_open(page_txt(&file_name), NULL);
-        }
     }
 }
 

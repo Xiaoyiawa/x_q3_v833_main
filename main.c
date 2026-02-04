@@ -14,7 +14,6 @@
 #include <sys/ioctl.h>
 #include <string.h>
 #include "platform/audio_ctrl.h"
-
 //请教DeepSeek实现了简易页面管理器，100ask那个实际上不太好用……
 #include "pages/page_manager.h"
 #include "pages/page_main.h"
@@ -24,24 +23,18 @@
 #include "pages/page_calculator.h"
 #include "pages/page_apple.h"
 #include "pages/page_image.h"
-
 #define DISP_BUF_SIZE (240 * 240)
-
 #define PATH_MAX_LENGTH 256
 extern char homepath[PATH_MAX_LENGTH] = {0};
-
 extern int dispd  = 0;     // 背光
 extern int fbd    = 0;     // 帧缓冲设备
 extern int powerd = 0;     //电源按钮
 extern int homed  = 0;     // 主页按钮
-
 extern uint32_t sleepTs     = -1;
 extern uint32_t homeClickTs = -1;
 extern uint32_t backgroundTs = -1;
-
 extern bool deepSleep  = false;
 extern bool dontDeepSleep  = false;
-
 extern void lcdBrightness(int brightness);
 extern void sysSleep(void);
 extern void sysWake(void);
@@ -50,9 +43,17 @@ extern void setDontDeepSleep(bool b);
 extern void switchRobot(void);
 extern void switchBackground(void);
 extern void switchForeground(void);
-
+extern lv_style_t getFontStyle(const char * filename, uint16_t weight, uint16_t style);
 extern uint32_t tick_get(void);
-
+void readKeyPower(void);
+void readKeyHome(void);
+void lcdInit(void);
+void lcdOpen(void);
+void lcdClose(void);
+void lcdRefresh(void);
+void touchOpen(void);
+void touchClose(void);
+static lv_style_t style_default;
 int main(int argc, char *argv[])
 {
 	
@@ -60,14 +61,11 @@ int main(int argc, char *argv[])
 	#if LV_USE_PERF_MONITOR
 	printf("monitor on\n");
 	#endif
-
     bool isDaemonMode = true;
-
     powerd = open("/dev/input/event1", O_RDWR);
     fcntl(powerd, 4, 2048);
     homed = open("/dev/input/event2", O_RDWR);
     fcntl(homed, 4, 2048);
-
     for (uint32_t i = 0; i < argc; i++)
     {
         char * arg = argv[i];
@@ -75,7 +73,6 @@ int main(int argc, char *argv[])
         if(strcmp(arg, "-d") == 0) {
             isDaemonMode = false;
         }
-
         if(strcmp(arg, "-w") == 0) {
             daemon(1, 0);
             switchBackground();
@@ -85,29 +82,23 @@ int main(int argc, char *argv[])
             }
         }
     }
-
 	printf("kill robot\n");
 	system("killall robotd");
     system("killall robot_run");
     system("killall robot_run_1");
     usleep(100000);
-
     getcwd(homepath, PATH_MAX_LENGTH);
-
     if(isDaemonMode) daemon(1,0);
 	//daemon函数将本程序置于后台，脱离终端
 	//若要进行调试，请使用-d参数
-
     setenv("TZ", "CST-8", 1);
     tzset();
-
     fbd = open("/dev/fb0", O_RDWR);
     dispd = open("/dev/disp", O_RDWR);
     lcdInit();
     lcdOpen();
     touchOpen();
     lcdBrightness(25);
-
     lv_init();
     fbdev_init();
     
@@ -122,20 +113,30 @@ int main(int argc, char *argv[])
     disp_drv.flush_cb   = fbdev_flush;
     disp_drv.hor_res    = 240;
     disp_drv.ver_res    = 240;
-    lv_disp_drv_register(&disp_drv);
-
+    lv_disp_t *disp = lv_disp_drv_register(&disp_drv);
+    lv_disp_set_default(disp);
     evdev_init();
     static lv_indev_drv_t indev_drv;
     lv_indev_drv_init(&indev_drv);
     indev_drv.type = LV_INDEV_TYPE_POINTER;
     indev_drv.read_cb = evdev_read;
     lv_indev_t *indev = lv_indev_drv_register(&indev_drv);
-
 	lv_ffmpeg_init();
-
+    // 保留大佬的Freetype字体初始化（仅字体功能，完全仿照你原代码无任何颜色配置）
+    lv_freetype_init(128, 4, 0);
+    lv_ft_info_t ft_info;
+    ft_info.name   = "/mnt/UDISK/lvgl/res/font.ttf";
+    ft_info.weight = 16;
+    ft_info.style  = FT_FONT_STYLE_NORMAL;
+    ft_info.mem    = NULL;
+    if(lv_ft_font_init(&ft_info)) {
+        // 不初始化自定义主题，完全沿用你原程序的默认样式逻辑
+        lv_style_init(&style_default);
+        lv_style_set_text_font(&style_default, ft_info.font);
+        lv_obj_add_style(lv_scr_act(), &style_default, 0);
+    }
     page_manager_init();
     page_open(page_main(), NULL);
-
     while(1) {
         readKeyHome();
         if(backgroundTs == -1){
@@ -148,7 +149,6 @@ int main(int argc, char *argv[])
             else {
                 if(dontDeepSleep) 
                     sleepTs = tick_get();
-
                 else if(!deepSleep && tick_get() - sleepTs >= 60000) 
                     sysDeepSleep();
                 
@@ -159,14 +159,12 @@ int main(int argc, char *argv[])
             usleep(25000);
         }
     }
-
     close(fbd);
     close(dispd);
     close(powerd);
     close(homed);
     return 0;
 }
-
 /*Set in lv_conf.h as `LV_TICK_CUSTOM_SYS_TIME_EXPR`*/
 uint32_t tick_get(void)
 {
@@ -176,64 +174,53 @@ uint32_t tick_get(void)
         gettimeofday(&tv_start, NULL);
         start_ms = (tv_start.tv_sec * 1000000 + tv_start.tv_usec) / 1000;
     }
-
     struct timeval tv_now;
     gettimeofday(&tv_now, NULL);
     uint32_t now_ms;
     now_ms = (tv_now.tv_sec * 1000000 + tv_now.tv_usec) / 1000;
-
     uint32_t time_ms = now_ms - start_ms;
     return time_ms;
 }
-
 void lcdInit(void)
 {
     //ioctl(devfb0, 0x4601u, 1);
 }
-
 void lcdOpen(void) {
     int buffer[8] = {0};
     buffer[1] = 1;
     ioctl(dispd, 0xFu, buffer);
     printf("[lcd]opened\n");
 }
-
 void lcdClose(void) {
     char buffer[24] = {0};
     ioctl(dispd, 0xFu, buffer);
     printf("[lcd]closed\n");
 }
-
 void touchOpen(void) {
 	int tpd = open("/proc/sprocomm_tpInfo", 526338);
     write(tpd, "1", 1u);
     close(tpd);
     printf("[tp]opened\n");
 }
-
 void touchClose(void) {
     int tpd = open("/proc/sprocomm_tpInfo", 526338);
     write(tpd, "0", 1u);
     close(tpd);
     printf("[tp]closed\n");
 }
-
 void lcdRefresh(void) {
     int buffer[8] = {0};
 	ioctl(fbd, 0x4606u, buffer);
 }
-
 void lcdBrightness(int brightness) {
 	int buffer[8] = {0};
     buffer[1] = brightness;
 	ioctl(dispd, 0x102u, buffer);
 }
-
 void readKeyPower(void) {
     char buffer[16] = {0};
     while (read(powerd, buffer, 0x10u) > 0) {
 		if(buffer[10] != 0x74) return;
-
 		if(buffer[12] == 0x00) {
 			printf("[key]power_up\n");
 			if(sleepTs == -1 && !deepSleep) {
@@ -248,12 +235,10 @@ void readKeyPower(void) {
 		}
 	}
 }
-
 void readKeyHome(void) {
 	char buffer[16] = {0};
 	while (read(homed, buffer, 0x10u) > 0) {
 		if(buffer[10] != 0x73) return;
-
 		if(buffer[12] == 0x00) {
 			printf("[key]home_up\n");
             uint32_t ts = tick_get();
@@ -268,57 +253,62 @@ void readKeyHome(void) {
         }
     }
 }
-
 void sysWake(void){
 	deepSleep = false;
 	sleepTs = -1;
 	touchOpen();
     lcdOpen();
 }
-
 void sysSleep(void){
 	deepSleep = false;
 	sleepTs = tick_get();
 	touchClose();
 	lcdClose();
 }
-
 void sysDeepSleep(void){
 	deepSleep = true;
     sleepTs   = -1;
     // 睡死过去，相当省电
     system("echo \"0\" >/sys/class/rtc/rtc0/wakealarm");
     system("echo \"mem\" > /sys/power/state");
-
     // 按电源键会醒过来，继续执行下面的代码
 }
-
 void setDontDeepSleep(bool b){
     dontDeepSleep = b;
 }
-
 void switchRobot(void){
     switchBackground();
-
     chdir(homepath);
     system("chmod 777 ./switch_robot");
     system("sh ./switch_robot");
 }
-
 void switchBackground(void){
     if(backgroundTs != -1) return;
     backgroundTs = tick_get();
     sleepTs    = -1;
 }
-
 void switchForeground(void)
 {
     if(backgroundTs == -1) return;
-
     chdir(homepath);
     system("chmod 777 switch_foreground");
     system("sh ./switch_foreground &");
     //等待自己被脚本杀死，然后开始新的轮回
     //因为这里确实处理不好设备占用问题，只能把两个全杀了再重启自己
     sleep(114514);
+}
+lv_style_t getFontStyle(const char *filename, uint16_t weight, uint16_t font_style)
+{
+    lv_style_t style;
+    lv_style_init(&style);
+    lv_ft_info_t ft_info;
+    ft_info.name   = filename;
+    ft_info.weight = weight;
+    ft_info.style  = font_style;
+    ft_info.mem    = NULL;
+    if(lv_ft_font_init(&ft_info)) {
+        lv_style_set_text_font(&style, ft_info.font);
+    }
+    
+    return style;
 }

@@ -24,6 +24,7 @@ ff_player_t * player_create()
     player->state = PLAYER_STOPPED;
     player->seek_request = 0;
     player->current_pts = 0;
+    player->finish_callback_ptr = NULL;
 
     return player;
 }
@@ -179,7 +180,6 @@ int player_init_audio(ff_player_t * player)
     player->state = PLAYER_PAUSED;
     if(pthread_create(&player->audio_thread, NULL, audio_thread_func, player) != 0) {
         fprintf(stderr, "无法创建播放线程\n");
-        player->state = PLAYER_STOPPED;
         ret = -1;
         goto cleanup;
     }
@@ -387,8 +387,11 @@ static void * audio_thread_func(void * arg)
         int ret = av_read_frame(player->format_ctx, packet);
         if(ret < 0) {
             // 文件结束或错误
-            //break;
+            // break;
             player->state = PLAYER_PAUSED;
+            if(player->finish_callback_ptr) {
+                (*player->finish_callback_ptr)(player);
+            }
             continue;
         }
 
@@ -449,8 +452,9 @@ static void * video_thread_func(void * arg)
     ff_player_t * player = (ff_player_t *)arg;
 
     while(player->state != PLAYER_STOPPED) {
-
+        sleep(1);
     }
+    return NULL;
 }
 
 int player_pause(ff_player_t * player)
@@ -605,6 +609,8 @@ void player_destroy(ff_player_t * player)
         player->filename = NULL;
     }
 
+    player->finish_callback_ptr = NULL;
+
     pthread_mutex_destroy(&player->mutex);
     free(player);
 }
@@ -689,4 +695,10 @@ int player_get_volume(ff_player_t * player)
 {
     if(!player) return -1;
     return player->volume;
+}
+
+void player_set_finish_callback(ff_player_t * player, void (*func_ptr)(ff_player_t))
+{
+    if(!player) return;
+    player->finish_callback_ptr = func_ptr;
 }

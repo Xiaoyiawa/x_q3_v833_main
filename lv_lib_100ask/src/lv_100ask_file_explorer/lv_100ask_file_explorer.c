@@ -311,7 +311,7 @@ static void lv_100ask_file_explorer_constructor(const lv_obj_class_t * class_p, 
 
     // 展示在文件浏览列表之上的区域(head)
     explorer->head_area = lv_obj_create(explorer->browser_area);
-    lv_obj_set_size(explorer->head_area, LV_PCT(100), LV_PCT(12));
+    lv_obj_set_size(explorer->head_area, LV_PCT(100), LV_PCT(10));
     lv_obj_clear_flag(explorer->head_area, LV_OBJ_FLAG_SCROLLABLE);
 
 #if LV_100ASK_FILE_EXPLORER_QUICK_ACCESS
@@ -364,7 +364,7 @@ static void lv_100ask_file_explorer_constructor(const lv_obj_class_t * class_p, 
 
     // 目录内容展示列表
     explorer->file_list = lv_table_create(explorer->browser_area);
-    lv_obj_set_size(explorer->file_list, LV_PCT(100), LV_PCT(84));
+    lv_obj_set_size(explorer->file_list, LV_PCT(100), LV_PCT(85));
     lv_table_set_col_width(explorer->file_list, 0, LV_PCT(100));
     lv_table_set_col_cnt(explorer->file_list, 1);
     lv_obj_add_event_cb(explorer->file_list, brower_file_event_handler, LV_EVENT_ALL, obj);
@@ -419,7 +419,7 @@ static void init_style(lv_obj_t * obj)
     lv_style_set_radius(&brower_area_style, 0);
     lv_style_set_border_width(&brower_area_style, 0);
     lv_style_set_outline_width(&brower_area_style, 0);
-    lv_style_set_bg_color(&brower_area_style, lv_color_hex(0xffffff));
+    //lv_style_set_bg_color(&brower_area_style, lv_color_hex(0xffffff));
 
 #if LV_100ASK_FILE_EXPLORER_QUICK_ACCESS
     // 左侧菜单的风格样式
@@ -440,7 +440,7 @@ static void init_style(lv_obj_t * obj)
     // 右侧文件浏览区域的样式风格
     static lv_style_t file_list_style;
     lv_style_init(&file_list_style);
-    lv_style_set_bg_color(&file_list_style, lv_color_hex(0xffffff));
+    //lv_style_set_bg_color(&file_list_style, lv_color_hex(0xffffff));
     lv_style_set_pad_all(&file_list_style, 0);
     lv_style_set_radius(&file_list_style, 0);
     lv_style_set_border_width(&file_list_style, 0);
@@ -448,7 +448,7 @@ static void init_style(lv_obj_t * obj)
 
     // 设置 file_explorer 的样式
     lv_obj_set_style_radius(obj, 0, 0);
-    lv_obj_set_style_bg_color(obj, lv_color_hex(0xf2f1f6), 0);
+    //lv_obj_set_style_bg_color(obj, lv_color_hex(0xf2f1f6), 0);
 
     // 在文件浏览列表之上的区域的样式
     lv_obj_set_style_radius(explorer->head_area, 0, 0);

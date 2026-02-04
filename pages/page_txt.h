@@ -13,9 +13,6 @@ extern "C" {
 #include "../lv_lib_100ask/lv_lib_100ask.h"
 #include "page_manager.h"
 
-// 添加字体声明
-extern lv_font_t HarmonyOS_16;
-
 /*********************
  *      DEFINES
  *********************/

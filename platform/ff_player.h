@@ -69,6 +69,8 @@ typedef struct
     int64_t duration;
 
     char * filename;
+
+    void (*finish_callback_ptr)(ff_player_t);
 } ff_player_t;
 
 // 函数声明
@@ -91,5 +93,8 @@ void player_destroy(ff_player_t * player);
 int player_set_volume(ff_player_t * player, int volume);
 int player_get_volume(ff_player_t * player);
 int player_init_volume_control(ff_player_t * player);
+
+// 状态变化回调
+void player_set_finish_callback(ff_player_t * player, void (*func_ptr)(ff_player_t));
 
 #endif

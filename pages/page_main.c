@@ -10,6 +10,7 @@ static void btn_file_manager_click(lv_event_t * e);
 static void btn_calculator_click(lv_event_t * e);
 static void btn_bird_click(lv_event_t * e);
 static void btn_apple_click(lv_event_t * e);
+static void btn_totp_click(lv_event_t * e);
 static void timer_tick(lv_event_t * e);
 
 lv_obj_t * page_main() {
@@ -28,7 +29,7 @@ lv_obj_t * page_main() {
     timer = lv_timer_create(timer_tick, 250, label1);
 
     lv_obj_t * btn_robot = lv_btn_create(screen);
-    lv_obj_set_size(btn_robot, lv_pct(45), lv_pct(25));
+    lv_obj_set_size(btn_robot, lv_pct(50), lv_pct(25));
     lv_obj_align(btn_robot, LV_FLEX_ALIGN_CENTER, 0, 0);
     lv_obj_t * btn_label_robot = lv_label_create(btn_robot);
     lv_label_set_text(btn_label_robot, "robot");
@@ -36,7 +37,7 @@ lv_obj_t * page_main() {
     lv_obj_add_event_cb(btn_robot, btn_robot_click, LV_EVENT_CLICKED, NULL);
 
     lv_obj_t * btn_file_manager = lv_btn_create(screen);
-    lv_obj_set_size(btn_file_manager, lv_pct(45), lv_pct(25));
+    lv_obj_set_size(btn_file_manager, lv_pct(50), lv_pct(25));
     lv_obj_align(btn_file_manager, LV_FLEX_ALIGN_CENTER, 0, 0);
     lv_obj_t * btn_label_file_manager = lv_label_create(btn_file_manager);
     lv_label_set_text(btn_label_file_manager, "file manager");
@@ -44,7 +45,7 @@ lv_obj_t * page_main() {
     lv_obj_add_event_cb(btn_file_manager, btn_file_manager_click, LV_EVENT_CLICKED, NULL);
 
     lv_obj_t * btn_calculator = lv_btn_create(screen);
-    lv_obj_set_size(btn_calculator, lv_pct(45), lv_pct(25));
+    lv_obj_set_size(btn_calculator, lv_pct(50), lv_pct(25));
     lv_obj_align(btn_calculator, LV_FLEX_ALIGN_CENTER, 0, 0);
     lv_obj_t * btn_label_calculator = lv_label_create(btn_calculator);
     lv_label_set_text(btn_label_calculator, "calculator");
@@ -53,16 +54,23 @@ lv_obj_t * page_main() {
 
     
     lv_obj_t * btn_bird = lv_btn_create(screen);
-    lv_obj_set_size(btn_bird, lv_pct(45), lv_pct(25));
+    lv_obj_set_size(btn_bird, lv_pct(50), lv_pct(25));
     lv_obj_align(btn_bird, LV_FLEX_ALIGN_CENTER, 0, 0);
     lv_obj_t * btn_label_bird = lv_label_create(btn_bird);
     lv_label_set_text(btn_label_bird, "flappy bird");
     lv_obj_center(btn_label_bird);
     lv_obj_add_event_cb(btn_bird, btn_bird_click, LV_EVENT_CLICKED, NULL);
-    
+
+    lv_obj_t * btn_totp = lv_btn_create(screen);
+    lv_obj_set_size(btn_totp, lv_pct(50), lv_pct(25));
+    lv_obj_align(btn_totp, LV_FLEX_ALIGN_CENTER, 0, 0);
+    lv_obj_t * btn_label_totp = lv_label_create(btn_totp);
+    lv_label_set_text(btn_label_totp, "TOTP");
+    lv_obj_center(btn_label_totp);
+    lv_obj_add_event_cb(btn_totp, btn_totp_click, LV_EVENT_CLICKED, NULL);
 
     lv_obj_t * btn_demo = lv_btn_create(screen);
-    lv_obj_set_size(btn_demo, lv_pct(45), lv_pct(25));
+    lv_obj_set_size(btn_demo, lv_pct(50), lv_pct(25));
     lv_obj_align(btn_demo, LV_FLEX_ALIGN_CENTER, 0, 0);
     lv_obj_t * btn_label_demo = lv_label_create(btn_demo);
     lv_label_set_text(btn_label_demo, "demo page");
@@ -71,7 +79,7 @@ lv_obj_t * page_main() {
 
     /*
     lv_obj_t * btn_apple = lv_btn_create(screen);
-    lv_obj_set_size(btn_apple, lv_pct(45), lv_pct(25));
+    lv_obj_set_size(btn_apple, lv_pct(50), lv_pct(25));
     lv_obj_align(btn_apple, LV_FLEX_ALIGN_CENTER, 0, 0);
     lv_obj_t * btn_label_apple = lv_label_create(btn_apple);
     lv_label_set_text(btn_label_apple, "apple");
@@ -109,6 +117,11 @@ static void btn_calculator_click(lv_event_t * e)
 static void btn_bird_click(lv_event_t * e)
 {
     page_open(page_bird(), NULL);
+}
+
+static void btn_totp_click(lv_event_t * e)
+{
+    page_open(page_totp(), NULL);
 }
 
 static void btn_apple_click(lv_event_t * e)

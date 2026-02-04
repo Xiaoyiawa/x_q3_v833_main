@@ -4,7 +4,7 @@
 LVGL_DIR_NAME ?= lvgl
 LVGL_DIR ?= ${shell pwd}
 CFLAGS ?= -O3 -g0 -I$(LVGL_DIR) -I$(LVGL_DIR)/include -Wall -Wshadow -Wundef -Wmissing-prototypes -Wno-discarded-qualifiers -Wall -Wextra -Wno-unused-function -Wno-error=strict-prototypes -Wpointer-arith -fno-strict-aliasing -Wno-error=cpp -Wuninitialized -Wmaybe-uninitialized -Wno-unused-parameter -Wno-missing-field-initializers -Wtype-limits -Wsizeof-pointer-memaccess -Wno-format-nonliteral -Wno-cast-qual -Wunreachable-code -Wno-switch-default -Wreturn-type -Wmultichar -Wformat-security -Wno-ignored-qualifiers -Wno-error=pedantic -Wno-sign-compare -Wno-error=missing-prototypes -Wdouble-promotion -Wclobbered -Wdeprecated -Wempty-body -Wtype-limits -Wshift-negative-value -Wstack-usage=2048 -Wno-unused-value -Wno-unused-parameter -Wno-missing-field-initializers -Wuninitialized -Wmaybe-uninitialized -Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -Wtype-limits -Wsizeof-pointer-memaccess -Wno-format-nonliteral -Wpointer-arith -Wno-cast-qual -Wmissing-prototypes -Wunreachable-code -Wno-switch-default -Wreturn-type -Wmultichar -Wno-discarded-qualifiers -Wformat-security -Wno-ignored-qualifiers -Wno-sign-compare
-LDFLAGS ?= -L$(LVGL_DIR)/lib -lavcodec -lavdevice -lavfilter -lavformat -lavutil -lpostproc -lswresample -lswscale -lz -lasound #-static
+LDFLAGS ?= -L$(LVGL_DIR)/lib -lavcodec -lavdevice -lavfilter -lavformat -lavutil -lpostproc -lswresample -lswscale -lz -lasound -lfreetype #-static
 BIN = demo
 
 
@@ -15,6 +15,7 @@ include $(LVGL_DIR)/lvgl/lvgl.mk
 include $(LVGL_DIR)/lv_drivers/lv_drivers.mk
 include $(LVGL_DIR)/pages/pages.mk
 include $(LVGL_DIR)/platform/platform.mk
+include $(LVGL_DIR)/views/views.mk
 include $(LVGL_DIR)/lv_lib_100ask/lv_lib_100ask.mk
 
 #CSRCS +=$(LVGL_DIR)/mouse_cursor_icon.c 
