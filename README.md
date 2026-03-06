@@ -4,11 +4,13 @@ https://github.com/RobinNotBad/lvgl_v833_q3
 
 ## 项目部分是用AI写的
 **代码写的很神奇**
-~~能跑起来就行嘻嘻~~ <br>
+~~能跑起来就行嘻嘻~~ 
 
 ## 运行平台
-**soc 志强v833 armv7 32bit**  
-推荐在**阿尔法蛋q3词典笔**上运行  
+
+目前支持：**阿尔法蛋词典笔Q3（普通版、增强版）**
+
+SOC：**全志V833**
 
 可以实现简易的文件浏览、MP3、小游戏等功能
 
@@ -16,9 +18,6 @@ https://github.com/RobinNotBad/lvgl_v833_q3
 <img width="240" height="240" alt="screen_20260305_204625" src="https://github.com/user-attachments/assets/39bdb3d3-135b-48b2-9b01-f2078dcbd333" />
 <img width="240" height="240" alt="screen_20260305_204442" src="https://github.com/user-attachments/assets/4e95439b-3b6e-4b4e-8d7a-a2ac0895bbea" />
 <img width="240" height="240" alt="screen_20260305_204629" src="https://github.com/user-attachments/assets/384b2831-f009-482c-9400-797526cc62f0" />
-
-
-
 
 ## 怎么从项目源代码编译
 * 建议使用**linux系统** 
