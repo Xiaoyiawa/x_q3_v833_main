@@ -24,7 +24,7 @@ extern "C" {
 /**********************
  * GLOBAL PROTOTYPES
  **********************/
-lv_obj_t * page_txt(char * filename);
+BasePage * page_txt(char * filename);
 
 /**********************
  *      MACROS

@@ -4,21 +4,23 @@
 
 #include "page_manager.h"
 
-#define MAX_PAGE_STACK 32 // 最大页面堆栈深度
+static PageManager page_manager;
 
-typedef struct
+/**
+ * 一个创建页面的简单示例，也可以对简单页面直接使用
+ * 需要自己分配一下内存，页面管理器会在销毁页面时自动释放
+ */
+BasePage * base_page_create(lv_obj_t * obj, void (*on_create)(void *), void (*on_destroy)(void *)) 
 {
-    lv_obj_t * page;  // 页面对象
-    void * user_data; // 用户数据
-} PageInfo;
+    BasePage * page = malloc(sizeof(BasePage));
+    if(!page) return NULL;
+    memset(page, 0, sizeof(BasePage));
 
-typedef struct
-{
-    PageInfo stack[MAX_PAGE_STACK]; // 页面堆栈
-    int top;                        // 栈顶指针
-} PageManager;
-
-static PageManager page_manager = {0};
+    page->obj = obj;
+    page->on_create = on_create;
+    page->on_destroy = on_destroy;
+    return page;
+}
 
 // 初始化页面管理器
 void page_manager_init(void)
@@ -26,31 +28,46 @@ void page_manager_init(void)
     page_manager.top = -1; // 初始化为空栈
 }
 
-// 创建新页面并压入堆栈
-void page_open(lv_obj_t * new_page, void * user_data)
+/**
+ * 旧版本，用于兼容旧版本的页面
+ * 也可以用于极简页面
+ */
+void page_open_obj(lv_obj_t * obj)
 {
-    if(!new_page) {
-        printf("[pm]new page is null!");
+    page_open(base_page_create(obj, NULL, NULL));
+}
+
+// 创建新页面并压入堆栈
+void page_open(BasePage * new_page)
+{
+    if(!new_page || !new_page->obj) {
+        LV_LOG_ERROR("[pm]new page is null!\n");
     }
 
     if(page_manager.top >= MAX_PAGE_STACK - 1) {
-        printf("[pm]stack overflow!");
+        LV_LOG_ERROR("[pm]stack overflow!\n");
         return;
     }
 
     // 隐藏当前页面（如果有）
     if(page_manager.top >= 0) {
-        lv_obj_add_flag(page_manager.stack[page_manager.top].page, LV_OBJ_FLAG_HIDDEN);
+        BasePage * current_page = page_manager.stack[page_manager.top];
+        lv_obj_add_flag(current_page->obj, LV_OBJ_FLAG_HIDDEN);
+
+        // on_pause回调
+        if(current_page->on_pause) (*current_page->on_pause)(current_page);
     }
 
     // 压入新页面
     page_manager.top++;
-    page_manager.stack[page_manager.top].page      = new_page;
-    page_manager.stack[page_manager.top].user_data = user_data;
+    page_manager.stack[page_manager.top] = new_page;
 
     // 设置新页面为当前显示
-    lv_obj_clear_flag(new_page, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_move_foreground(new_page);
+    lv_obj_clear_flag(new_page->obj, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_move_foreground(new_page->obj);
+
+    // on_create回调
+    if(new_page->on_create) (*new_page->on_create)(new_page);
 }
 
 // 返回上一页并销毁当前页
@@ -58,38 +75,26 @@ void page_back(void)
 {
     if(page_manager.top < 0) return;
 
-    // 1. 获取当前页面
-    lv_obj_t * current_page = page_manager.stack[page_manager.top].page;
+    // 获取、隐藏当前页面
+    BasePage * current_page = page_manager.stack[page_manager.top];
+    lv_obj_add_flag(current_page->obj, LV_OBJ_FLAG_HIDDEN);
 
-    // 2. 先隐藏当前页面
-    lv_obj_add_flag(current_page, LV_OBJ_FLAG_HIDDEN);
+    // on_destroy回调
+    if(current_page->on_destroy) (*current_page->on_destroy)(current_page);
 
-    // 3. 显示上一页面
+    // 显示上一页面
     page_manager.top--;
     if(page_manager.top >= 0) {
-        lv_obj_clear_flag(page_manager.stack[page_manager.top].page, LV_OBJ_FLAG_HIDDEN);
+        BasePage * new_page = page_manager.stack[page_manager.top];
+        lv_obj_clear_flag(new_page->obj, LV_OBJ_FLAG_HIDDEN);
+
+        // on_resume回调
+        if(new_page->on_resume) (*new_page->on_resume)(new_page);
     }
 
-    // 4. 延迟删除当前页面
-    lv_obj_del_async(current_page);
+    // 延迟删除当前页面
+    lv_obj_del_async(current_page->obj);
+    free(current_page);
 
-    // 5. 如果需要，可以在这里触发页面切换动画
-}
-
-// 获取当前页面的用户数据
-void * page_get_current_user_data(void)
-{
-    if(page_manager.top < 0) {
-        return NULL;
-    }
-    return page_manager.stack[page_manager.top].user_data;
-}
-
-// 获取当前页面对象
-lv_obj_t * page_get_current(void)
-{
-    if(page_manager.top < 0) {
-        return NULL;
-    }
-    return page_manager.stack[page_manager.top].page;
+    // 如果需要，可以在这里触发页面切换动画
 }

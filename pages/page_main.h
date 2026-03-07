@@ -24,11 +24,16 @@ extern "C" {
 /**********************
  *      TYPEDEFS
  **********************/
+typedef struct
+{
+    BasePage base;
+
+} MainPage;
 
 /**********************
  * GLOBAL PROTOTYPES
  **********************/
-lv_obj_t * page_main();
+BasePage * main_page_create(void);
 
 /**********************
  *      MACROS

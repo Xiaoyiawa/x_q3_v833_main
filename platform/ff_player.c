@@ -1,15 +1,19 @@
+/**
+ * 一个极其简易、问题很多、主打能用就行的音视频播放器
+ * 理论支持任何linux + alsa + lvgl的使用场景
+ * 视频功能初始化时将会自适应lv_img对象的大小
+ * 而且抛开视频也能运行
+ */
+
 #include "ff_player.h"
 
 #define BUFFER_SIZE 4096
 #define MAX_CHANNELS 6
 
-
-static void * audio_thread_func(void * arg);
+static void * player_thread_func(void * arg);
 static bool ffmpeg_pix_fmt_has_alpha(enum AVPixelFormat pix_fmt);
 static bool ffmpeg_pix_fmt_is_yuv(enum AVPixelFormat pix_fmt);
 static int ffmpeg_image_allocate(ff_player_t * player);
-static uint8_t * ffmpeg_get_img_data(ff_player_t * player);
-static void video_refresh_cb(void * user_data);
 
 ff_player_t * player_create()
 {
@@ -23,8 +27,7 @@ ff_player_t * player_create()
 
     // 初始化状态
     player->state = PLAYER_STOPPED;
-    player->seek_request_audio        = false;
-    player->seek_request_video        = false;
+    player->seek_request        = false;
     player->current_pts               = 0;
     player->finish_callback_ptr       = NULL;
 
@@ -178,7 +181,7 @@ int player_init_audio(ff_player_t * player)
 
     // 创建播放线程
     player->state = PLAYER_PAUSED;
-    if(pthread_create(&player->audio_thread, NULL, audio_thread_func, player) != 0) {
+    if(pthread_create(&player->player_thread, NULL, player_thread_func, player) != 0) {
         fprintf(stderr, "无法创建播放线程\n");
         ret = -1;
         goto cleanup;
@@ -378,7 +381,7 @@ static bool ffmpeg_pix_fmt_is_yuv(enum AVPixelFormat pix_fmt)
     return !(desc->flags & AV_PIX_FMT_FLAG_RGB) && desc->nb_components >= 2;
 }
 
-static void * audio_thread_func(void * arg)
+static void * player_thread_func(void * arg)
 {
     ff_player_t * player = (ff_player_t *)arg;
 
@@ -398,15 +401,16 @@ static void * audio_thread_func(void * arg)
     while(player->state != PLAYER_STOPPED) {
 
         // 检查跳转请求
-        if(player->seek_request_audio) {
+        if(player->seek_request) {
             int64_t seek_target = player->seek_pos;
             if(av_seek_frame(player->format_ctx, player->audio_stream_index, seek_target, AVSEEK_FLAG_BACKWARD) < 0) {
                 fprintf(stderr, "跳转失败\n");
             } else {
                 avcodec_flush_buffers(player->audio_codec_ctx);
+                if(player->video_codec_ctx) avcodec_flush_buffers(player->video_codec_ctx);
                 player->current_pts = seek_target;
             }
-            player->seek_request_audio = false;
+            player->seek_request = false;
         }
         // 检查暂停状态
         if(player->state == PLAYER_PAUSED) {
@@ -455,9 +459,9 @@ static void * audio_thread_func(void * arg)
                     snd_pcm_sframes_t frames_written = snd_pcm_writei(player->pcm_handle, audio_buffer, out_samples);
                     if(frames_written < 0) {
                         frames_written = snd_pcm_recover(player->pcm_handle, frames_written, 0);
-                    }
-                    if(frames_written < 0) {
-                        fprintf(stderr, "写入PCM设备错误: %s\n", snd_strerror(frames_written));
+                        if(frames_written < 0) {
+                            fprintf(stderr, "写入PCM设备错误: %s\n", snd_strerror(frames_written));
+                        }
                     }
                 }
 
@@ -514,12 +518,6 @@ cleanup:
     return NULL;
 }
 
-static void video_refresh_cb(void *user_data) {
-    ff_player_t * player = (ff_player_t *)user_data;
-    lv_obj_invalidate(player->video_area);
-    player->video_refresh_request = false;
-}
-
 int player_pause(ff_player_t * player)
 {
     if(!player) return -1;
@@ -555,9 +553,9 @@ int player_stop(ff_player_t * player)
     pthread_mutex_unlock(&player->mutex);
 
     // 等待线程结束
-    if(player->audio_thread) {
-        pthread_join(player->audio_thread, NULL);
-        player->audio_thread = 0;
+    if(player->player_thread) {
+        pthread_join(player->player_thread, NULL);
+        player->player_thread = 0;
     }
 
     // 清理资源
@@ -614,15 +612,14 @@ int player_seek_pct(ff_player_t * player, double percent)
     int64_t target_pts = (int64_t)(player->duration * percent / 100.0);
     int64_t now_pts    = player->current_pts;
 
-    printf("now=%lld, duration=%lld\n", now_pts, player->duration);
+    LV_LOG_USER("[player]now=%lld, duration=%lld\n", now_pts, player->duration);
 
     if(!player || player->state == PLAYER_STOPPED) return -1;
     if(target_pts < 0) target_pts = 0;
     if(target_pts > player->duration) target_pts = player->duration;
 
-    player->seek_pos           = target_pts;
-    player->seek_request_audio = true;
-    player->seek_request_video = true;
+    player->seek_pos     = target_pts;
+    player->seek_request = true;
     return 0;
 
 }
@@ -634,12 +631,11 @@ int player_seek_ms(ff_player_t * player, int64_t target_ms)
         int64_t target_pts = target_ms * (AV_TIME_BASE / 1000);
         int64_t now_pts    = player->current_pts;
 
-        printf("now=%lld, duration=%lld\n", now_pts, player->duration);
+        LV_LOG_USER("[player]now=%lld, duration=%lld\n", now_pts, player->duration);
         if(!player || target_pts < 0 || target_pts > player->duration || player->state == PLAYER_STOPPED)
             return -1;
-        player->seek_pos           = target_pts;
-        player->seek_request_audio = true;
-        player->seek_request_video = true;
+        player->seek_pos     = target_pts;
+        player->seek_request = true;
         return 0;
     }
     return -1;
@@ -684,13 +680,15 @@ void player_destroy(ff_player_t * player)
     }
 
     player->finish_callback_ptr = NULL;
+    player->user_data            = NULL;
 
     pthread_mutex_destroy(&player->mutex);
     free(player);
 }
 
-void player_set_finish_callback(ff_player_t * player, void (*func_ptr)(ff_player_t))
+void player_set_finish_callback(ff_player_t * player, void (*func_ptr)(void *), void * user_data)
 {
     if(!player) return;
     player->finish_callback_ptr = func_ptr;
+    player->user_data           = user_data;
 }

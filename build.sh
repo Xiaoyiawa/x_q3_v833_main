@@ -12,4 +12,4 @@ export STRIP=$TOOLCHAIN/bin/arm-openwrt-linux-muslgnueabi-strip
 
 export STAGING_DIR=$TOOLCHAIN/bin
 
-make -j${nproc}
+make -j4

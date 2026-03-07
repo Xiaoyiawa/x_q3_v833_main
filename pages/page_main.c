@@ -11,13 +11,15 @@ static void btn_file_manager_click(lv_event_t * e);
 static void btn_calculator_click(lv_event_t * e);
 static void btn_bird_click(lv_event_t * e);
 static void btn_ftp_click(lv_event_t * e);
-static void btn_apple_click(lv_event_t * e);
 static void btn_totp_click(lv_event_t * e);
 static void btn_recorder_click(lv_event_t * e);
+static void btn_apple_click(lv_event_t * e);
 static void timer_time_tick(lv_event_t * e);
 static void timer_battery_tick(lv_event_t * e);
+static void main_page_on_destroy(void * page); // 新增销毁回调
 
-lv_obj_t * page_main()
+// 内部构建 UI，返回 lv_obj_t* 屏幕对象
+static lv_obj_t * page_main(void)
 {
     lv_obj_t * screen = lv_obj_create(lv_scr_act());
     // lv_obj_remove_style_all(screen);
@@ -52,7 +54,7 @@ lv_obj_t * page_main()
     lv_obj_set_size(btn_file_manager, lv_pct(60), lv_pct(25));
     lv_obj_align(btn_file_manager, LV_FLEX_ALIGN_CENTER, 0, 0);
     lv_obj_t * btn_label_file_manager = lv_label_create(btn_file_manager);
-    lv_label_set_text(btn_label_file_manager, "文件管理器");
+    lv_label_set_text(btn_label_file_manager, "file manager");
     lv_obj_center(btn_label_file_manager);
     lv_obj_add_event_cb(btn_file_manager, btn_file_manager_click, LV_EVENT_CLICKED, NULL);
 
@@ -107,9 +109,17 @@ lv_obj_t * page_main()
     return screen;
 }
 
-static void btn_demo_click(lv_event_t * e) // static可以防止同名冲突
+// 公开的页面创建函数，返回 BasePage* 供 page_open 使用
+BasePage * main_page_create(void)
 {
-    page_open(page_demo(), NULL);
+    lv_obj_t * screen = page_main();
+    BasePage * page   = base_page_create(screen, NULL, main_page_on_destroy);
+    return page;
+}
+
+static void btn_demo_click(lv_event_t * e)
+{
+    page_open(demo_page_create());
 }
 
 static void btn_robot_click(lv_event_t * e)
@@ -119,47 +129,48 @@ static void btn_robot_click(lv_event_t * e)
 
 static void btn_file_manager_click(lv_event_t * e)
 {
-    page_open(page_file_manager(), NULL);
+    // 旧版页面，使用 page_open_obj 兼容
+    page_open_obj(page_file_manager());
 }
 
 static void btn_calculator_click(lv_event_t * e)
 {
-    page_open(page_calculator(), NULL);
+    page_open(calc_page_create());
 }
 
 static void btn_bird_click(lv_event_t * e)
 {
-    page_open(page_bird(), NULL);
+    page_open_obj(page_bird());
 }
 
 static void btn_ftp_click(lv_event_t * e)
 {
-    page_open(page_ftp(), NULL);
+    page_open_obj(page_ftp());
 }
 
 static void btn_totp_click(lv_event_t * e)
 {
-    page_open(page_totp(), NULL);
-}
-
-static void btn_apple_click(lv_event_t * e)
-{
-    page_open(page_apple(), NULL);
+    page_open_obj(page_totp());
 }
 
 static void btn_recorder_click(lv_event_t * e)
 {
-    page_open(page_recorder_create(), NULL);
+    page_open_obj(page_recorder_create());
+}
+
+static void btn_apple_click(lv_event_t * e)
+{
+    page_open_obj(page_apple());
 }
 
 static void timer_time_tick(lv_event_t * e)
 {
-    char * time_text[24];
+    char time_text[24];
     struct timeval tv;
     gettimeofday(&tv, NULL);
 
     struct tm * tm;
-    tm = localtime(&tv);
+    tm = localtime(&tv.tv_sec);
 
     lv_snprintf(time_text, sizeof(time_text), "%04d-%02d-%02d %02d:%02d:%02d", tm->tm_year + 1900, tm->tm_mon + 1,
                 tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec);
@@ -168,9 +179,9 @@ static void timer_time_tick(lv_event_t * e)
 
 static void timer_battery_tick(lv_event_t * e)
 {
-    char * battery_text[24];
+    char battery_text[24];
     int capacity;
-    char * status[24];
+    char status[24];
     int voltage;
 
     FILE * fp_capacity = fopen("/sys/class/power_supply/battery/capacity", "r");
@@ -190,4 +201,19 @@ static void timer_battery_tick(lv_event_t * e)
         snprintf(battery_text, sizeof(battery_text), "%d%% %s %.3fV", capacity, status, voltage / 1000000.0);
         lv_label_set_text(label_battery, battery_text);
     }
+}
+
+// 页面销毁回调：释放定时器资源
+static void main_page_on_destroy(void * page)
+{
+    (void)page; // 未使用
+    if(timer_time) {
+        lv_timer_del(timer_time);
+        timer_time = NULL;
+    }
+    if(timer_battery) {
+        lv_timer_del(timer_battery);
+        timer_battery = NULL;
+    }
+    // screen 对象会被 page_back 自动删除，无需额外操作
 }

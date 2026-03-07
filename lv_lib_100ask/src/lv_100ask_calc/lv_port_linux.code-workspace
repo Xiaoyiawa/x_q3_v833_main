@@ -27,7 +27,8 @@
 			"swscale.h": "c",
 			"page_ftp.h": "c",
 			"cjson_utils.h": "c",
-			"cjson.h": "c"
+			"cjson.h": "c",
+			"page_manager.h": "c"
 		}
 	}
 }

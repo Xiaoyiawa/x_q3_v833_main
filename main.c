@@ -22,7 +22,7 @@
 #include <libswscale/swscale.h>
 #include <libavutil/imgutils.h>
 
-// 请教DeepSeek实现了简易页面管理器，100ask那个实际上不太好用……
+// 页面管理器及各个页面模块
 #include "pages/page_manager.h"
 #include "pages/page_main.h"
 #include "pages/page_demo.h"
@@ -36,20 +36,20 @@
 #define DISP_BUF_SIZE (LV_SCR_WIDTH * LV_SCR_HEIGHT)
 
 #define PATH_MAX_LENGTH 256
-extern char homepath[PATH_MAX_LENGTH] = {0};
+char homepath[PATH_MAX_LENGTH] = {0};
 
-extern int dispd  = 0;            // 背光
-extern int fbd    = 0;            // 帧缓冲设备
-extern int powerd = 0;            // 电源按钮
-extern int homed  = 0;            // 主页按钮
+int dispd  = 0;                   // 背光
+int fbd    = 0;                   // 帧缓冲设备
+int powerd = 0;                   // 电源按钮
+int homed  = 0;                   // 主页按钮
 struct fb_var_screeninfo * vinfo; // 屏幕参数
 
-extern uint32_t sleepTs      = -1;
-extern uint32_t homeClickTs  = -1;
-extern uint32_t backgroundTs = -1;
+uint32_t sleepTs      = -1;
+uint32_t homeClickTs  = -1;
+uint32_t backgroundTs = -1;
 
-extern bool deepSleep     = false;
-extern bool dontDeepSleep = false;
+bool deepSleep     = false;
+bool dontDeepSleep = false;
 
 extern void lcdBrightness(int brightness);
 extern void sysSleep(void);
@@ -310,8 +310,9 @@ int main(int argc, char * argv[])
         lv_obj_add_style(lv_scr_act(), &style_default, 0);
     }
 
+    // 初始化页面管理器并打开主页面（使用兼容函数）
     page_manager_init();
-    page_open(page_main(), NULL);
+    page_open(main_page_create());
 
     while(1) {
         readKeyHome();

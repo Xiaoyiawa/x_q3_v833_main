@@ -36,22 +36,28 @@ static void explorer_event_handler(lv_event_t * e)
 
         lv_snprintf(file_name, sizeof(file_name), "%s%s", cur_path + 1, sel_fn);
 
-        printf(file_name);
-        printf("\n");
+        printf("%s\n", file_name);
 
         if(str_end_with(file_name, ".png", false) || str_end_with(file_name, ".jpg", false) ||
-           str_end_with(file_name, ".jpeg", false) || str_end_with(file_name, ".bmp", false))
-            page_open(page_image(&file_name), NULL);
+           str_end_with(file_name, ".jpeg", false) || str_end_with(file_name, ".bmp", false) ||
+           str_end_with(file_name, ".gif", false)) {
+            page_open_obj(page_image(file_name));
+        }
 
         if(str_end_with(file_name, ".mp3", false) || str_end_with(file_name, ".wav", false) ||
-           str_end_with(file_name, ".ogg", false) || str_end_with(file_name, ".m4a", false))
-            page_open(page_audio(&file_name), NULL);
+           str_end_with(file_name, ".ogg", false) || str_end_with(file_name, ".m4a", false) ||
+           str_end_with(file_name, ".aac", false) || str_end_with(file_name, ".pcm", false)) {
+            page_open(page_audio_create(file_name));
+        }
 
-        if(str_end_with(file_name, ".mp4", false)) page_open(page_apple(&file_name), NULL);
+        if(str_end_with(file_name, ".mp4", false)) {
+            page_open(page_video_create(file_name));
+        }
 
         if(str_end_with(file_name, ".txt", false) || str_end_with(file_name, ".json", false) ||
-           str_end_with(file_name, ".conf", false))
-            page_open(page_txt(&file_name), NULL);
+           str_end_with(file_name, ".conf", false)) {
+            page_open(page_txt(file_name));
+        }
     }
 }
 

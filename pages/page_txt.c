@@ -12,6 +12,7 @@ static void next_page_click(lv_event_t * e);
 static void prev_page_click(lv_event_t * e);
 static void update_display(void);
 static void build_pages(void);
+static void page_txt_on_destroy(void * page); // 新增销毁回调
 
 static int get_utf8_char_len(unsigned char c)
 {
@@ -51,7 +52,7 @@ static int current_page      = 0;
 static int total_pages       = 0;
 static long * page_starts    = NULL; // 每页起始位置数组
 
-lv_obj_t * page_txt(char * filename)
+BasePage * page_txt(char * filename)
 {
     screen = lv_obj_create(lv_scr_act());
     lv_obj_remove_style_all(screen);
@@ -83,7 +84,14 @@ lv_obj_t * page_txt(char * filename)
         lv_obj_center(btn_back_label);
         lv_obj_add_event_cb(btn_back, back_click, LV_EVENT_CLICKED, NULL);
 
-        return screen;
+        // 创建 BasePage 包装错误页面（无资源需释放，on_destroy 留空）
+        BasePage * page = malloc(sizeof(BasePage));
+        if(page) {
+            memset(page, 0, sizeof(BasePage));
+            page->obj = screen;
+            // 无需回调
+        }
+        return page;
     }
 
     // 获取文件大小
@@ -107,7 +115,13 @@ lv_obj_t * page_txt(char * filename)
         lv_obj_center(btn_back_label);
         lv_obj_add_event_cb(btn_back, back_click, LV_EVENT_CLICKED, NULL);
 
-        return screen;
+        // 创建 BasePage 包装错误页面
+        BasePage * page = malloc(sizeof(BasePage));
+        if(page) {
+            memset(page, 0, sizeof(BasePage));
+            page->obj = screen;
+        }
+        return page;
     }
 
     size_t read_size        = fread(file_content, 1, file_size, fp);
@@ -150,7 +164,15 @@ lv_obj_t * page_txt(char * filename)
 
     update_display();
 
-    return screen;
+    // 创建 BasePage 包装正常页面，设置销毁回调以释放资源
+    BasePage * page = malloc(sizeof(BasePage));
+    if(page) {
+        memset(page, 0, sizeof(BasePage));
+        page->obj        = screen;
+        page->on_destroy = page_txt_on_destroy; // 注册销毁回调
+        // user_data 未使用
+    }
+    return page;
 }
 
 static void build_pages(void)
@@ -408,14 +430,7 @@ static void update_display(void)
 
 static void back_click(lv_event_t * e)
 {
-    if(file_content) {
-        free(file_content);
-        file_content = NULL;
-    }
-    if(page_starts) {
-        free(page_starts);
-        page_starts = NULL;
-    }
+    // 资源释放由 on_destroy 回调处理，此处仅返回上一页
     page_back();
 }
 
@@ -433,4 +448,19 @@ static void prev_page_click(lv_event_t * e)
         current_page--;
         update_display();
     }
+}
+
+// 销毁回调：释放文件内容和分页索引数组
+static void page_txt_on_destroy(void * page)
+{
+    (void)page; // 参数未使用
+    if(file_content) {
+        free(file_content);
+        file_content = NULL;
+    }
+    if(page_starts) {
+        free(page_starts);
+        page_starts = NULL;
+    }
+    // 注意：screen 对象会被 page_back 自动删除，无需额外操作
 }
