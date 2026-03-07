@@ -449,11 +449,10 @@ void readKeyHome(void)
 
         if(buffer[12] == 0x00) {
             printf("[key]home_up\n");
+
             if(combo_triggered) {
                 combo_triggered = 0;
                 printf("[key] combo already handled, skip screenshot\n");
-            } else {
-                take_screenshot();
             }
 
             uint32_t ts = tick_get();
