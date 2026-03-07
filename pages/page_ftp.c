@@ -1,7 +1,7 @@
 #include "page_ftp.h"
 
-#define VSFTPD_EXE "/mnt/UDISK/tools/ftp/vsftpd"
-#define VSFTPD_CONF "/mnt/UDISK/tools/ftp/vsftpd.conf"
+#define VSFTPD_EXE "/mnt/UDISK/tools/bin/vsftpd"
+#define VSFTPD_CONF "/mnt/UDISK/tools/config/vsftpd.conf"
 
 static void back_click(lv_event_t * e);
 static void btn_start_click(lv_event_t * e);
@@ -30,14 +30,13 @@ lv_obj_t * page_ftp()
     lv_obj_center(btn_stop_label);
     lv_obj_add_event_cb(btn_stop, btn_stop_click, LV_EVENT_CLICKED, NULL);
 
-    
     FILE * fp;
     char buffer[1024];
     char ip[20] = "";
 
     // 执行ifconfig命令
     fp = popen("ifconfig", "r");
-    if (fp == NULL) {
+    if(fp == NULL) {
         perror("popen failed");
     } else {
         // 解析输出，查找IP地址
@@ -51,11 +50,13 @@ lv_obj_t * page_ftp()
         }
         pclose(fp);
     }
-    
+
     lv_obj_t * label_ip = lv_label_create(screen);
     lv_obj_align(label_ip, LV_ALIGN_TOP_MID, 0, lv_pct(80));
-    if(strlen(ip) == 0) lv_label_set_text(label_ip, "No Connection");
-    else lv_label_set_text(label_ip, ip);
+    if(strlen(ip) == 0)
+        lv_label_set_text(label_ip, "No Connection");
+    else
+        lv_label_set_text(label_ip, ip);
 
     lv_obj_t * btn_back = lv_btn_create(screen);
     lv_obj_set_size(btn_back, lv_pct(25), lv_pct(12));
@@ -80,17 +81,15 @@ static void btn_start_click(lv_event_t * e)
     pid_t cpid = fork();
 
     if(cpid == 0) {
-        //此处为子进程
-        char * argv[]     = {VSFTPD_EXE, VSFTPD_CONF, NULL};
+        // 此处为子进程
+        char * argv[] = {VSFTPD_EXE, VSFTPD_CONF, NULL};
         execv(VSFTPD_EXE, argv);
-        
-        exit(127);  //防止意外执行失败
-    }
 
+        exit(127); // 防止意外执行失败
+    }
 }
 
 static void btn_stop_click(lv_event_t * e)
 {
     system("killall vsftpd &");
 }
-

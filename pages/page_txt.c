@@ -4,16 +4,15 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define MAX_LINES 9           // 每页最多显示9行
-#define MAX_CHARS_PER_LINE 26 // 以英文字符为基准的最大行宽（单位：英文字符宽度）
+#define MAX_LINES 9
+#define MAX_CHARS_PER_LINE 26
 
 static void back_click(lv_event_t * e);
 static void next_page_click(lv_event_t * e);
 static void prev_page_click(lv_event_t * e);
 static void update_display(void);
-static void build_pages(void); // 预分页，计算每页起始位置
+static void build_pages(void);
 
-// UTF-8字符长度辅助函数
 static int get_utf8_char_len(unsigned char c)
 {
     if(c < 0x80)
@@ -115,29 +114,24 @@ lv_obj_t * page_txt(char * filename)
     file_content[read_size] = '\0';
     fclose(fp);
 
-    // 预分页，计算每页起始位置和总页数
     build_pages();
 
-    // 创建文本显示标签
     text_label = lv_label_create(screen);
     lv_obj_set_width(text_label, lv_pct(95));
     lv_obj_align(text_label, LV_ALIGN_TOP_MID, 0, 10);
     lv_label_set_long_mode(text_label, LV_LABEL_LONG_WRAP);
 
-    // 创建页码标签（显示当前页/总页数）
     page_label = lv_label_create(screen);
     lv_obj_align(page_label, LV_ALIGN_BOTTOM_MID, 0, -5);
 
-    // 左下角返回按钮
     lv_obj_t * btn_back = lv_btn_create(screen);
     lv_obj_set_size(btn_back, lv_pct(25), lv_pct(12));
     lv_obj_align(btn_back, LV_ALIGN_BOTTOM_LEFT, 0, 0);
     lv_obj_t * btn_back_label = lv_label_create(btn_back);
-    lv_label_set_text(btn_back_label, "back");
+    lv_label_set_text(btn_back_label, CUSTOM_SYMBOL_BACK "");
     lv_obj_center(btn_back_label);
     lv_obj_add_event_cb(btn_back, back_click, LV_EVENT_CLICKED, NULL);
 
-    // 翻页按钮 - 左箭头
     lv_obj_t * btn_prev = lv_btn_create(screen);
     lv_obj_set_size(btn_prev, 43, 30);
     lv_obj_align(btn_prev, LV_ALIGN_BOTTOM_RIGHT, -46, 0);
@@ -146,7 +140,6 @@ lv_obj_t * page_txt(char * filename)
     lv_obj_center(btn_prev_label);
     lv_obj_add_event_cb(btn_prev, prev_page_click, LV_EVENT_CLICKED, NULL);
 
-    // 翻页按钮 - 右箭头
     lv_obj_t * btn_next = lv_btn_create(screen);
     lv_obj_set_size(btn_next, 43, 30);
     lv_obj_align(btn_next, LV_ALIGN_BOTTOM_RIGHT, 0, 0);
@@ -155,13 +148,11 @@ lv_obj_t * page_txt(char * filename)
     lv_obj_center(btn_next_label);
     lv_obj_add_event_cb(btn_next, next_page_click, LV_EVENT_CLICKED, NULL);
 
-    // 初始显示第一页
     update_display();
 
     return screen;
 }
 
-// 预分页函数：扫描整个文件，根据显示规则计算每页的起始位置，存入 page_starts 数组
 static void build_pages(void)
 {
     if(!file_content || file_size == 0) {
@@ -171,7 +162,6 @@ static void build_pages(void)
         return;
     }
 
-    // 先估算最大页数（每页最少1个字符），分配足够空间
     int max_pages = (file_size + 1) / 1 + 1;
     page_starts   = (long *)malloc(sizeof(long) * max_pages);
     if(!page_starts) {

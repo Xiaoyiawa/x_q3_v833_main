@@ -38,7 +38,7 @@ all: default
 
 %.o: %.c
 	@$(CC)  $(CFLAGS) -c $< -o $@
-	@echo "CC  $<"
+	@echo "[CC]  $<"
     
 default: $(AOBJS) $(COBJS) $(MAINOBJ)
 	$(CC) -o $(BIN) $(MAINOBJ) $(AOBJS) $(COBJS) $(LDFLAGS)
