@@ -464,7 +464,7 @@ void readKeyHome(void)
             }
         } else {
             printf("[key]home_down\n");
-            home_down_time = tick_get(); // 记录按下时间
+            home_down_time = tick_get();
         }
     }
 }
