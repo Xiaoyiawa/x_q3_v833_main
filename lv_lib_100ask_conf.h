@@ -58,16 +58,22 @@
 
     /*test*/
     #define LV_100ASK_PAGE_MANAGER_SIMPLE_TEST          1
+#else 
+    #define  LV_100ASK_PAGE_MANAGER_SIMPLE_TEST          0
 #endif
 
 /*screenshot*/
 #if LV_USE_SNAPSHOT
     /* Requires LV_USE_SNAPSHOT = 1 */
     #define LV_USE_100ASK_SCREENSHOT                    0
+#else
+    #define LV_USE_100ASK_SCREENSHOT                    0
 #endif
 #if LV_USE_100ASK_SCREENSHOT
     /*test*/
     #define LV_USE_100ASK_SCREENSHOT_TEST               1
+#else 
+    #define  LV_USE_100ASK_SCREENSHOT_TEST          0
 #endif
 
 /* sketchpad */
@@ -82,6 +88,10 @@
 
     /*test*/
     #define LV_100ASK_SKETCHPAD_SIMPLE_TEST             1
+#else 
+    #define  SKETCHPAD_DEFAULT_WIDTH          0
+    #define  SKETCHPAD_DEFAULT_HEIGHT          0
+    #define  LV_100ASK_SKETCHPAD_SIMPLE_TEST          0
 #endif
 
 
@@ -94,6 +104,10 @@
 
     /*test*/
     #define LV_100ASK_CALC_SIMPLE_TEST                  0
+#else 
+    #define  LV_100ASK_CALC_EXPR_LEN          0
+    #define  LV_100ASK_CALC_MAX_NUM_LEN          0
+    #define  LV_100ASK_CALC_SIMPLE_TEST          0
 #endif
 
 /*GAME*/
@@ -107,6 +121,10 @@
 
     /*test*/
     #define  LV_100ASK_MEMORY_GAME_SIMPLE_TEST          1
+#else 
+    #define  LV_100ASK_MEMORY_GAME_DEFAULT_ROW          0
+    #define  LV_100ASK_MEMORY_GAME_DEFAULT_COL          0
+    #define  LV_100ASK_MEMORY_GAME_SIMPLE_TEST          0
 #endif   
 
 /*2048 game*/
@@ -124,11 +142,11 @@
 #define LV_USE_100ASK_FILE_EXPLORER                     1
 #if LV_USE_100ASK_FILE_EXPLORER
     /*Maximum length of path*/
-    #define LV_100ASK_FILE_EXPLORER_PATH_MAX_LEN        (128)
+    #define LV_100ASK_FILE_EXPLORER_PATH_MAX_LEN        (1024)
     /*Quick access bar, 1:use, 0:not use*/
     #define LV_100ASK_FILE_EXPLORER_QUICK_ACCESS        0
     /*test*/
-    #define  LV_100ASK_FILE_EXPLORER_SIMPLE_TEST        1
+    #define  LV_100ASK_FILE_EXPLORER_SIMPLE_TEST        0
 #endif  
 
 /***Game simulator***/
@@ -143,10 +161,16 @@
     #define LV_100ASK_NES_PLATFORM_RTTHREAD             0 /*TODO*/
     
     /*test*/
-#if LV_USE_100ASK_FILE_EXPLORER
-    #define LV_100ASK_NES_SIMPLE_TEST                   1
+    #if LV_USE_100ASK_FILE_EXPLORER
+        #define LV_100ASK_NES_SIMPLE_TEST                   1
+    #else
+        #define LV_100ASK_NES_SIMPLE_TEST                   0
+    #endif
+#else
+    #define LV_100ASK_NES_SIMPLE_TEST                   0
 #endif
-#endif
+
+#define LV_100ASK_NES_SIMPLE_TEST                   0
 
 #endif /*LV_LIB_100ASK_H*/
 

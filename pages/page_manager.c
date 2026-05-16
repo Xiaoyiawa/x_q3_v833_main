@@ -4,21 +4,21 @@
 
 #include "page_manager.h"
 
+#include "main.h"
+
 static PageManager page_manager;
 
 /**
  * 一个创建页面的简单示例，也可以对简单页面直接使用
  * 需要自己分配一下内存，页面管理器会在销毁页面时自动释放
  */
-BasePage * base_page_create(lv_obj_t * obj, void (*on_create)(void *), void (*on_destroy)(void *)) 
+BasePage * base_page_create(lv_obj_t * obj) 
 {
     BasePage * page = malloc(sizeof(BasePage));
     if(!page) return NULL;
     memset(page, 0, sizeof(BasePage));
 
     page->obj = obj;
-    page->on_create = on_create;
-    page->on_destroy = on_destroy;
     return page;
 }
 
@@ -34,7 +34,7 @@ void page_manager_init(void)
  */
 void page_open_obj(lv_obj_t * obj)
 {
-    page_open(base_page_create(obj, NULL, NULL));
+    page_open(base_page_create(obj));
 }
 
 // 创建新页面并压入堆栈
@@ -73,7 +73,7 @@ void page_open(BasePage * new_page)
 // 返回上一页并销毁当前页
 void page_back(void)
 {
-    if(page_manager.top < 0) return;
+    if(page_manager.top <= 0) return;
 
     // 获取、隐藏当前页面
     BasePage * current_page = page_manager.stack[page_manager.top];
@@ -97,4 +97,21 @@ void page_back(void)
     free(current_page);
 
     // 如果需要，可以在这里触发页面切换动画
+}
+
+bool page_on_key(key_code_t key_code, key_action_t key_action)
+{
+    // 获取当前页面
+    BasePage * current_page = page_manager.stack[page_manager.top];
+    
+    if(current_page) {
+        bool ret;
+        if(current_page->on_key) 
+            ret = (*current_page->on_key)(current_page, key_code, key_action);
+        else
+            ret = false;
+
+        return ret;
+    }
+    return false;
 }

@@ -341,7 +341,8 @@ static void lv_100ask_file_explorer_constructor(const lv_obj_class_t * class_p, 
 
     // 目录内容展示列表
     explorer->file_list = lv_table_create(explorer->browser_area);
-    lv_obj_set_size(explorer->file_list, LV_PCT(100), LV_PCT(83));
+    lv_obj_set_width(explorer->file_list, LV_PCT(100));
+    lv_obj_set_flex_grow(explorer->file_list, 1);
     lv_table_set_col_width(explorer->file_list, 0, LV_PCT(100));
     lv_table_set_col_cnt(explorer->file_list, 1);
     lv_obj_add_event_cb(explorer->file_list, brower_file_event_handler, LV_EVENT_ALL, obj);
@@ -591,9 +592,10 @@ static void show_dir(lv_obj_t * obj, char * path)
         return;
     }
 
-    lv_table_set_cell_value_fmt(explorer->file_list, index, 0, LV_SYMBOL_DIRECTORY "  %s", "..");
-    lv_table_set_cell_value(explorer->file_list, index, 1, "0");
-    index++;
+    // lv_table_set_cell_value_fmt(explorer->file_list, index++, 0, LV_SYMBOL_DIRECTORY "  %s", ".");
+    lv_table_set_cell_value_fmt(explorer->file_list, index++, 0, LV_SYMBOL_DIRECTORY "  %s", "..");
+    lv_table_set_cell_value(explorer->file_list, 0, 1, "0");
+    // lv_table_set_cell_value(explorer->file_list, 1, 1, "0");
 
     while(1) {
         res = lv_fs_dir_read(&dir, fn);
@@ -602,43 +604,52 @@ static void show_dir(lv_obj_t * obj, char * path)
             break;
         }
 
+        /*fn is empty, if not more files to read*/
         if(strlen(fn) == 0) {
-            LV_LOG_USER("Not more files to read!");
+            LV_LOG_USER("No more files to read!");
             break;
         }
 
-        // 识别文件类型并添加对应图标
-        if(is_end_with(fn, ".png", false) || is_end_with(fn, ".jpg", false) || is_end_with(fn, ".bmp", false) ||
-           is_end_with(fn, ".gif", false)) {
+        // 识别并展示文件
+        if(str_end_with(fn, ".png", false) || str_end_with(fn, ".jpg", false) || str_end_with(fn, ".jpeg", false) ||
+           str_end_with(fn, ".bmp", false) || str_end_with(fn, ".gif", false)) {
             lv_table_set_cell_value_fmt(explorer->file_list, index, 0, LV_SYMBOL_IMAGE "  %s", fn);
             lv_table_set_cell_value(explorer->file_list, index, 1, "1");
-        } else if(is_end_with(fn, ".mp3", false) || is_end_with(fn, ".ogg", false) || is_end_with(fn, ".m4a", false) ||
-                  is_end_with(fn, ".wav", false)) {
+        } else if(str_end_with(fn, ".mp3", false) || str_end_with(fn, ".wav", false) ||
+                  str_end_with(fn, ".ogg", false) || str_end_with(fn, ".m4a", false) ||
+                  str_end_with(fn, ".aac", false) || str_end_with(fn, ".pcm", false) ||
+                  str_end_with(fn, ".mid", false) || str_end_with(fn, ".midi", false)) {
             lv_table_set_cell_value_fmt(explorer->file_list, index, 0, LV_SYMBOL_AUDIO "  %s", fn);
             lv_table_set_cell_value(explorer->file_list, index, 1, "2");
-        } else if(is_end_with(fn, ".mp4", false)) {
+        } else if(str_end_with(fn, ".mp4", false)) {
             lv_table_set_cell_value_fmt(explorer->file_list, index, 0, LV_SYMBOL_VIDEO "  %s", fn);
             lv_table_set_cell_value(explorer->file_list, index, 1, "3");
-        } else if(is_end_with(fn, ".txt", false)) {
+        } else if(str_end_with(fn, ".txt", false) || str_end_with(fn, ".log", false) ||
+                  str_end_with(fn, ".json", false) || str_end_with(fn, ".md", false) ||
+                  str_end_with(fn, ".conf", false)) {
             lv_table_set_cell_value_fmt(explorer->file_list, index, 0, LV_SYMBOL_TXT "  %s", fn);
             lv_table_set_cell_value(explorer->file_list, index, 1, "4");
-        } else if(is_end_with(fn, ".", false) || is_end_with(fn, "..", false)) {
-            /* 忽略 "." 和 ".."（已在开头显式处理）*/
+        } else if(str_end_with(fn, ".", false) || str_end_with(fn, "..", false)) {
+            /*is dir*/
+            // lv_table_set_cell_value_fmt(explorer->file_list, index, 0, LV_SYMBOL_DIRECTORY "  %s", fn);
             continue;
-        } else if(fn[0] == '/') { /* 目录（路径以'/'开头）*/
+        } else if(fn[0] == '/') { /*is dir*/
             lv_table_set_cell_value_fmt(explorer->file_list, index, 0, LV_SYMBOL_DIRECTORY "  %s", fn + 1);
             lv_table_set_cell_value(explorer->file_list, index, 1, "0");
         } else {
             lv_table_set_cell_value_fmt(explorer->file_list, index, 0, LV_SYMBOL_FILE "  %s", fn);
-            lv_table_set_cell_value(explorer->file_list, index, 1, "4");
+            lv_table_set_cell_value(explorer->file_list, index, 1, "5");
         }
 
         index++;
+
+        // LV_LOG_USER("%s", fn);
     }
 
     lv_fs_dir_close(&dir);
     lv_table_set_row_cnt(explorer->file_list, index);
     lv_100ask_file_explorer_set_sort(obj, LV_100ASK_EXPLORER_SORT_KIND);
+    // 让table移动到最顶部
     lv_obj_scroll_to_y(explorer->file_list, 0, LV_ANIM_OFF);
 
     lv_memset_00(explorer->cur_path, sizeof(explorer->cur_path));

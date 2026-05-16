@@ -17,6 +17,7 @@ extern "C" {
 /*********************
  *      DEFINES
  *********************/
+extern const char * days_of_week[];
 
 /**********************
  *      TYPEDEFS

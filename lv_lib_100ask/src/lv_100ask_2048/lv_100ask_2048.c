@@ -661,5 +661,45 @@ static bool game_over(uint16_t matrix[MATRIX_SIZE][MATRIX_SIZE])
     return ended;
 }
 
+void lv_100ask_2048_set_matrix(lv_obj_t * obj, uint16_t matrix[MATRIX_SIZE][MATRIX_SIZE])
+{
+    LV_ASSERT_OBJ(obj, MY_CLASS);
+    lv_100ask_2048_t * game_2048 = (lv_100ask_2048_t *)obj;
+
+    uint8_t x, y;
+    for (x = 0; x < MATRIX_SIZE; x++) {
+        for (y = 0; y < MATRIX_SIZE; y++) {
+            game_2048->matrix[x][y] = matrix[x][y];
+        }
+    }
+    lv_100ask_2048_refresh(obj);
+}
+
+void lv_100ask_2048_set_score(lv_obj_t * obj, uint16_t score)
+{
+    LV_ASSERT_OBJ(obj, MY_CLASS);
+    lv_100ask_2048_t * game_2048 = (lv_100ask_2048_t *)obj;
+    game_2048->score = score;
+}
+
+void lv_100ask_2048_refresh(lv_obj_t * obj)
+{
+    LV_ASSERT_OBJ(obj, MY_CLASS);
+    lv_100ask_2048_t * game_2048 = (lv_100ask_2048_t *)obj;
+    update_btnm_map(game_2048->btnm_map, game_2048->matrix);
+    lv_btnmatrix_set_map(game_2048->btnm, game_2048->btnm_map);
+}
+
+void lv_100ask_2048_get_matrix(lv_obj_t * obj, uint16_t out_matrix[MATRIX_SIZE][MATRIX_SIZE])
+{
+    LV_ASSERT_OBJ(obj, MY_CLASS);
+    lv_100ask_2048_t * game_2048 = (lv_100ask_2048_t *)obj;
+    uint8_t x, y;
+    for (x = 0; x < MATRIX_SIZE; x++) {
+        for (y = 0; y < MATRIX_SIZE; y++) {
+            out_matrix[x][y] = game_2048->matrix[x][y];
+        }
+    }
+}
 
 #endif  /*LV_USE_100ASK_2048*/

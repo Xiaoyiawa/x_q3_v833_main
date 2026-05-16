@@ -25,7 +25,7 @@ extern "C" {
 /**********************
  * GLOBAL PROTOTYPES
  **********************/
-lv_obj_t * page_image(char * src);
+BasePage * page_image_create(char * filename);
 
 /**********************
  *      MACROS

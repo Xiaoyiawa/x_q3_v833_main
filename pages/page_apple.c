@@ -1,5 +1,7 @@
 #include "page_apple.h"
 
+#include "main.h"
+
 typedef struct
 {
     BasePage base;
@@ -19,7 +21,7 @@ static void slider_progress_released(lv_event_t * e);
 static void slider_volume_changed(lv_event_t * e);
 static void touch_clicked(lv_event_t * e);
 static void control_click(lv_event_t * e);
-static void timer_tick(lv_event_t * e);
+static void timer_tick(lv_timer_t * e);
 static void player_finished(void * p);
 static void page_video_destroy(void * p);
 
@@ -40,7 +42,8 @@ static lv_obj_t * page_video_obj(VideoPage * page, char * filename)
     lv_obj_remove_style_all(screen);
     lv_obj_set_size(screen, lv_pct(100), lv_pct(100));
 
-    setDontDeepSleep(true);
+    sys_set_dont_deep_sleep(true);
+    sys_set_dont_timeout(true);
     audio_enable();
 
     lv_img_header_t header;
@@ -174,7 +177,7 @@ static void touch_clicked(lv_event_t * e)
     }
 }
 
-static void timer_tick(lv_event_t * e)
+static void timer_tick(lv_timer_t * e)
 {
     VideoPage * page = (VideoPage *)e->user_data;
     if(!page || !page->player) return;
@@ -195,5 +198,6 @@ static void page_video_destroy(void * p)
     if(page->player) player_destroy(page->player);
     page->player = NULL;
     audio_disable();
-    setDontDeepSleep(false);
+    sys_set_dont_deep_sleep(false);
+    sys_set_dont_timeout(false);
 }

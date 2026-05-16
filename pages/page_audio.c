@@ -16,7 +16,7 @@ static lv_obj_t * page_audio_obj(AudioPage * page, char * filename);
 static void back_click(lv_event_t * e);
 static void cycle_click(lv_event_t * e);
 static void control_click(lv_event_t * e);
-static void timer_tick(lv_event_t * e);
+static void timer_tick(lv_timer_t * e);
 static void slider_progress_changed(lv_event_t * e);
 static void slider_progress_released(lv_event_t * e);
 static void slider_volume_changed(lv_event_t * e);
@@ -32,7 +32,7 @@ BasePage * page_audio_create(char * filename)
 
     page->base.obj        = page_audio_obj(page, filename);
     page->base.on_destroy = page_audio_destroy;
-    return page;
+    return (BasePage *)page;
 }
 
 static lv_obj_t * page_audio_obj(AudioPage * page, char * filename)
@@ -41,39 +41,43 @@ static lv_obj_t * page_audio_obj(AudioPage * page, char * filename)
     lv_obj_remove_style_all(screen);
     lv_obj_set_size(screen, lv_pct(100), lv_pct(100));
 
-    setDontDeepSleep(true);
+    sys_set_dont_deep_sleep(true);
     page->cycle = false;
     audio_enable();
 
-    page->player = player_create(); // /mnt/app/factory/play_test.wav
-    if(player_open(page->player, filename) == 0 && player_init_audio(page->player) == 0) {
-        player_resume(page->player);
-        player_set_finish_callback(page->player, player_finished, page);
+    ff_player_t * player = player_create(); // /mnt/app/factory/play_test.wav
+    if(player_open(player, filename) == 0 && player_init_audio(player) == 0) {
+        player_resume(player);
+        player_set_finish_callback(player, player_finished, page);
+        page->player = player;
     } else
-        page->player = NULL;
+        player = NULL;
 
     lv_obj_t * btn_control = lv_btn_create(screen);
     lv_obj_set_size(btn_control, lv_pct(40), lv_pct(20));
     lv_obj_align(btn_control, LV_ALIGN_TOP_MID, 0, lv_pct(60));
-    page->btn_control_label = lv_label_create(btn_control);
-    lv_label_set_text(page->btn_control_label, LV_SYMBOL_PAUSE "");
-    lv_obj_center(page->btn_control_label);
+    lv_obj_t * btn_control_label = lv_label_create(btn_control);
+    lv_label_set_text(btn_control_label, LV_SYMBOL_PAUSE "");
+    lv_obj_center(btn_control_label);
     lv_obj_add_event_cb(btn_control, control_click, LV_EVENT_CLICKED, page);
+    page->btn_control_label      = btn_control_label;
 
-    page->slider_progress = lv_slider_create(screen);
-    lv_obj_set_size(page->slider_progress, lv_pct(80), lv_pct(10));
-    lv_obj_align(page->slider_progress, LV_ALIGN_TOP_MID, 0, lv_pct(20));
-    lv_slider_set_range(page->slider_progress, 0, 100);
-    lv_obj_add_event_cb(page->slider_progress, slider_progress_changed, LV_EVENT_VALUE_CHANGED, page);
-    lv_obj_add_event_cb(page->slider_progress, slider_progress_released, LV_EVENT_RELEASED, page);
+    lv_obj_t * slider_progress = lv_slider_create(screen);
+    lv_obj_set_size(slider_progress, lv_pct(80), lv_pct(10));
+    lv_obj_align(slider_progress, LV_ALIGN_TOP_MID, 0, lv_pct(20));
+    lv_slider_set_range(slider_progress, 0, 100);
+    lv_obj_add_event_cb(slider_progress, slider_progress_changed, LV_EVENT_VALUE_CHANGED, page);
+    lv_obj_add_event_cb(slider_progress, slider_progress_released, LV_EVENT_RELEASED, page);
+    page->slider_progress = slider_progress;
 
-    page->slider_volume = lv_slider_create(screen);
-    lv_obj_set_size(page->slider_volume, lv_pct(80), lv_pct(10));
-    lv_obj_align(page->slider_volume, LV_ALIGN_TOP_MID, 0, lv_pct(40));
-    lv_slider_set_range(page->slider_volume, 0, 100);
-    lv_slider_set_value(page->slider_volume, audio_volume_get(), LV_ANIM_OFF);
-    lv_obj_add_event_cb(page->slider_volume, slider_volume_changed, LV_EVENT_VALUE_CHANGED, page);
-    lv_obj_add_event_cb(page->slider_volume, slider_volume_released, LV_EVENT_RELEASED, page);
+    lv_obj_t * slider_volume = lv_slider_create(screen);
+    lv_obj_set_size(slider_volume, lv_pct(80), lv_pct(10));
+    lv_obj_align(slider_volume, LV_ALIGN_TOP_MID, 0, lv_pct(40));
+    lv_slider_set_range(slider_volume, 0, 100);
+    lv_slider_set_value(slider_volume, audio_volume_get(), LV_ANIM_OFF);
+    lv_obj_add_event_cb(slider_volume, slider_volume_changed, LV_EVENT_VALUE_CHANGED, page);
+    lv_obj_add_event_cb(slider_volume, slider_volume_released, LV_EVENT_RELEASED, page);
+    page->slider_volume = slider_volume;
 
     lv_obj_t * btn_back = lv_btn_create(screen);
     lv_obj_set_size(btn_back, lv_pct(25), lv_pct(12));
@@ -86,12 +90,13 @@ static lv_obj_t * page_audio_obj(AudioPage * page, char * filename)
     lv_obj_t * btn_cycle = lv_btn_create(screen);
     lv_obj_set_size(btn_cycle, lv_pct(25), lv_pct(12));
     lv_obj_align(btn_cycle, LV_ALIGN_BOTTOM_RIGHT, 0, 0);
-    page->btn_cycle_label = lv_label_create(btn_cycle);
-    lv_label_set_text(page->btn_cycle_label, CUSTOM_SYMBOL_BAN "");
-    lv_obj_center(page->btn_cycle_label);
+    lv_obj_t * btn_cycle_label = lv_label_create(btn_cycle);
+    lv_label_set_text(btn_cycle_label, CUSTOM_SYMBOL_BAN "");
+    lv_obj_center(btn_cycle_label);
     lv_obj_add_event_cb(btn_cycle, cycle_click, LV_EVENT_CLICKED, page);
+    page->btn_cycle_label = btn_cycle_label;
 
-    lv_text_clock_t * clock = lv_text_clock_create(screen);
+    lv_obj_t * clock = lv_text_clock_create(screen);
     lv_obj_set_size(clock, lv_pct(100), lv_pct(12));
     lv_obj_align(clock, LV_ALIGN_TOP_MID, 0, lv_pct(3));
     lv_obj_set_style_text_align(clock, LV_TEXT_ALIGN_CENTER, NULL);
@@ -117,7 +122,7 @@ static void control_click(lv_event_t * e)
 {
     AudioPage * page = (AudioPage *)e->user_data;
     if(!page) return;
-    ff_player_t * player = page->player;
+    ff_player_t * player         = page->player;
     lv_obj_t * btn_control_label = page->btn_control_label;
     if(!player || !btn_control_label) return;
 
@@ -162,7 +167,7 @@ static void slider_volume_changed(lv_event_t * e)
 static void slider_volume_released(lv_event_t * e)
 {}
 
-static void timer_tick(lv_event_t * e){
+static void timer_tick(lv_timer_t * e){
     AudioPage * page = (AudioPage *)e->user_data;
     if(!page->player) return;
     lv_slider_set_value(page->slider_progress, player_get_position_pct(page->player), LV_ANIM_OFF);
@@ -194,5 +199,5 @@ static void page_audio_destroy(void * p)
     if(page->player) player_destroy(page->player);
     page->player = NULL;
     audio_disable();
-    setDontDeepSleep(false);
+    sys_set_dont_deep_sleep(false);
 }

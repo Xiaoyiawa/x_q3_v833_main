@@ -1,18 +1,26 @@
 #include "page_ftp.h"
 
-#define VSFTPD_EXE "/mnt/UDISK/tools/bin/vsftpd"
-#define VSFTPD_CONF "/mnt/UDISK/tools/config/vsftpd.conf"
+#include "main.h"
+
+#define VSFTPD_EXE "./tools/vsftpd"
+#define VSFTPD_CONF "./tools/vsftpd.conf"
 
 static void back_click(lv_event_t * e);
 static void btn_start_click(lv_event_t * e);
 static void btn_stop_click(lv_event_t * e);
+static void refresh_text(lv_obj_t * label);
+static bool is_vsftpd_running(void);
 
-lv_obj_t * page_ftp()
+lv_obj_t * page_ftp(void)
 {
     lv_obj_t * screen = lv_obj_create(lv_scr_act());
     lv_obj_remove_style_all(screen);
     lv_obj_clear_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_size(screen, lv_pct(100), lv_pct(100));
+
+    lv_obj_t * label_ip = lv_label_create(screen);
+    lv_obj_align(label_ip, LV_ALIGN_TOP_MID, 0, lv_pct(80));
+    refresh_text(label_ip);
 
     lv_obj_t * btn_start = lv_btn_create(screen);
     lv_obj_set_size(btn_start, lv_pct(60), lv_pct(25));
@@ -20,7 +28,7 @@ lv_obj_t * page_ftp()
     lv_obj_t * btn_start_label = lv_label_create(btn_start);
     lv_label_set_text(btn_start_label, "start vsftpd");
     lv_obj_center(btn_start_label);
-    lv_obj_add_event_cb(btn_start, btn_start_click, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(btn_start, btn_start_click, LV_EVENT_CLICKED, label_ip);
 
     lv_obj_t * btn_stop = lv_btn_create(screen);
     lv_obj_set_size(btn_stop, lv_pct(60), lv_pct(25));
@@ -28,36 +36,8 @@ lv_obj_t * page_ftp()
     lv_obj_t * btn_stop_label = lv_label_create(btn_stop);
     lv_label_set_text(btn_stop_label, "kill vsftpd");
     lv_obj_center(btn_stop_label);
-    lv_obj_add_event_cb(btn_stop, btn_stop_click, LV_EVENT_CLICKED, NULL);
-
-    FILE * fp;
-    char buffer[1024];
-    char ip[20] = "";
-
-    // 执行ifconfig命令
-    fp = popen("ifconfig", "r");
-    if(fp == NULL) {
-        perror("popen failed");
-    } else {
-        // 解析输出，查找IP地址
-        while(fgets(buffer, sizeof(buffer), fp) != NULL) {
-            // 查找包含"inet"的行（IPv4地址）
-            if(strstr(buffer, "inet addr:") != NULL && strstr(buffer, "127.0.0.1") == NULL) {
-                char * ip_start = strstr(buffer, "inet addr:") + 10;
-                sscanf(ip_start, "%s", ip);
-                break;
-            }
-        }
-        pclose(fp);
-    }
-
-    lv_obj_t * label_ip = lv_label_create(screen);
-    lv_obj_align(label_ip, LV_ALIGN_TOP_MID, 0, lv_pct(80));
-    if(strlen(ip) == 0)
-        lv_label_set_text(label_ip, "No Connection");
-    else
-        lv_label_set_text(label_ip, ip);
-
+    lv_obj_add_event_cb(btn_stop, btn_stop_click, LV_EVENT_CLICKED, label_ip);
+    
     lv_obj_t * btn_back = lv_btn_create(screen);
     lv_obj_set_size(btn_back, lv_pct(25), lv_pct(12));
     lv_obj_align(btn_back, LV_ALIGN_TOP_LEFT, 0, 0);
@@ -76,20 +56,79 @@ static void back_click(lv_event_t * e)
 
 static void btn_start_click(lv_event_t * e)
 {
+    if(is_vsftpd_running()) return;
+
     system("chmod 777 " VSFTPD_EXE);
 
     pid_t cpid = fork();
 
     if(cpid == 0) {
-        // 此处为子进程
-        char * argv[] = {VSFTPD_EXE, VSFTPD_CONF, NULL};
-        execv(VSFTPD_EXE, argv);
+        //此处为子进程
+        daemon(1, 0);
+        close(fbd);
+        close(dispd);
+        close(powerd);
+        close(homed);
 
-        exit(127); // 防止意外执行失败
+        char * argv[]     = {VSFTPD_EXE, VSFTPD_CONF, NULL};
+        execv(VSFTPD_EXE, argv);
+        
+        exit(127);  //防止意外执行失败
     }
+
+    usleep(1000);
+    refresh_text((lv_obj_t *)e->user_data);
 }
 
 static void btn_stop_click(lv_event_t * e)
 {
+    if(!is_vsftpd_running()) return;
+
     system("killall vsftpd &");
+    usleep(1000);
+    refresh_text((lv_obj_t *)e->user_data);
+}
+
+static void refresh_text(lv_obj_t * label)
+{
+    if(is_vsftpd_running()) {
+        FILE * fp;
+        char buffer_ifconfig[512];
+        char ip[20] = "";
+
+        // 执行ifconfig命令
+        fp = popen("ifconfig", "r");
+        if(fp == NULL) {
+            perror("popen failed");
+        } else {
+            // 解析输出，查找IP地址
+            while(fgets(buffer_ifconfig, sizeof(buffer_ifconfig), fp) != NULL) {
+                // 查找包含"inet"的行（IPv4地址）
+                if(strstr(buffer_ifconfig, "inet addr:") != NULL && strstr(buffer_ifconfig, "127.0.0.1") == NULL) {
+                    char * ip_start = strstr(buffer_ifconfig, "inet addr:") + 10;
+                    sscanf(ip_start, "%s", ip);
+                    break;
+                }
+            }
+            pclose(fp);
+
+            if(strlen(ip) == 0)
+                lv_label_set_text(label, "No Connection");
+            else
+                lv_label_set_text(label, ip);
+        }
+    }
+    else {
+        lv_label_set_text(label, "Not Running");
+    }
+
+}
+
+static bool is_vsftpd_running(void)
+{
+    char buffer_pidof[32];
+    FILE * fp = popen("pidof vsftpd", "r");
+    bool is_running  = (fgets(buffer_pidof, sizeof(buffer_pidof), fp) != NULL);
+    pclose(fp);
+    return is_running;
 }

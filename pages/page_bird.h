@@ -9,9 +9,11 @@ extern "C" {
  *      INCLUDES
  *********************/
 #include "../lvgl/lvgl.h"
+#include "lv_drv_conf.h"
 #include "../lv_lib_100ask/lv_lib_100ask.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <time.h>
 #include "page_manager.h"
 
@@ -26,7 +28,7 @@ extern "C" {
 /**********************
  * GLOBAL PROTOTYPES
  **********************/
-lv_obj_t * page_bird();
+BasePage * page_bird_create(void);
 
 /**********************
  *      MACROS
