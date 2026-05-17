@@ -1,5 +1,3 @@
-#!/bin/bash
-
 make clean
 
 export TOOLCHAIN=$HOME/toolchain
@@ -12,4 +10,6 @@ export STRIP=$TOOLCHAIN/bin/arm-openwrt-linux-muslgnueabi-strip
 
 export STAGING_DIR=$TOOLCHAIN/bin
 
-make -j4
+make -j${nproc}
+
+$STRIP demo

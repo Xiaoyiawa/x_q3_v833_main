@@ -441,10 +441,12 @@ static void * record_thread_func(void * arg)
         while(samples_to_copy > 0) {
             int space = rec->accum_buf_size - rec->accum_samples;
             if(space == 0) {
-                // 累积缓冲区满了
+                // 累积缓冲区满了，但还没达到 frame_size？不应该发生，但为了安全，扩大缓冲区？
                 // 这里简单处理：先编码现有数据，再继续
-                // ALSA_REC_DEBUG("Accum buffer full, forcing encode");
-		// ���������ע����һ��
+                ALSA_REC_DEBUG("Accum buffer full, forcing encode");
+                // 为了简化，我们直接丢弃？不，应该先编码。但 frame_size 是固定的，所以 space 应该够。
+                // 实际上，如果 period_size > frame_size，space 可能不够，需要多次编码。
+                // 我们循环处理直到 samples_to_copy 为 0。
                 if(rec->accum_samples >= rec->frame_size) {
                     // 累积了至少一帧，先编码
                     // 复制到 frame
