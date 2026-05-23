@@ -546,7 +546,7 @@ static void * upgrade_thread(void * arg)
 
     /* 4. 安装脚本 */
     update_status_async(page, "正在安装...");
-    system("chmod +x ./tmp/install.sh");
+    system("chmod +x /tmp/dendro/install.sh");
     ret = run_install_script(page);
     if (ret == 0) {
         UPGRADE_DEBUG("Install script finished successfully");
@@ -694,7 +694,7 @@ static int sha1_verify(const char * file_path, const char * expected_sha1)
 
 static int run_install_script(UpgradePage * page)
 {
-    FILE * fp = popen("./tmp/install.sh 2>&1", "r");
+    FILE * fp = popen("/tmp/dendro/install.sh 2>&1", "r");
     if (!fp) return -1;
     char line[512], prev_line[512] = "", output_buf[4096] = "";
     int is_success = 0;

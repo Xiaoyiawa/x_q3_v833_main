@@ -20,9 +20,9 @@ extern "C" {
 #define UPGRADE_DEBUG(fmt, ...) printf("[Upgrade] " fmt "\n", ##__VA_ARGS__)
 #define CA_BUNDLE_PATH "./tools/ca-bundle.crt"
 #define LOCAL_VERSION_PATH  "./setting/version"
-#define TMP_DIR             "./tmp"
-#define TMP_UPGRADE_INFO    "./tmp/upgrade_info.txt"
-#define TMP_ERROR_LOG       "./tmp/error.txt"
+#define TMP_DIR             "/tmp/dendro"
+#define TMP_UPGRADE_INFO    "/tmp/dendro/upgrade_info.txt"
+#define TMP_ERROR_LOG       "/tmp/dendro/error.txt"
 
 BasePage * page_upgrade_create(const char * json_url);
 
