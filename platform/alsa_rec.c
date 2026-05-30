@@ -581,7 +581,7 @@ thread_exit:
     FILE * fp  = rec->file;
     bool abort = rec->abort_flag;
     char fname[256];
-    strncpy(fname, rec->filename, sizeof(fname) - 1);
+    snprintf(fname, sizeof(fname), "%s", rec->filename);
     rec->file = NULL;
     pthread_mutex_unlock(&rec->mutex);
 

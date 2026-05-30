@@ -187,7 +187,7 @@ lv_obj_t * lv_100ask_file_explorer_get_file_list(lv_obj_t * obj)
     return explorer->file_list;
 }
 
-lv_obj_t * lv_100ask_file_explorer_get_head(lv_obj_t * obj)
+lv_obj_t * lv_100ask_file_explorer_get_head_area(lv_obj_t * obj)
 {
     LV_ASSERT_OBJ(obj, MY_CLASS);
 
@@ -239,8 +239,6 @@ lv_obj_t * lv_100ask_file_explorer_get_quick_access_ctrl_btn(lv_obj_t * obj)
  *====================*/
 void lv_100ask_file_explorer_open_dir(lv_obj_t * obj, char * dir)
 {
-    lv_100ask_file_explorer_t * explorer = (lv_100ask_file_explorer_t *)obj;
-
     show_dir(obj, dir);
 }
 
@@ -336,7 +334,7 @@ static void lv_100ask_file_explorer_constructor(const lv_obj_class_t * class_p, 
     lv_label_set_long_mode(explorer->path_label, LV_LABEL_LONG_CLIP);
     lv_obj_set_size(explorer->path_label, LV_PCT(100), LV_PCT(100));
     lv_label_set_text(explorer->path_label, "/" /*"https://lvgl.100ask.net"*/);
-    lv_obj_set_style_text_align(explorer->path_label, LV_TEXT_ALIGN_RIGHT, NULL);
+    lv_obj_set_style_text_align(explorer->path_label, LV_TEXT_ALIGN_RIGHT, 0);
     lv_obj_align(explorer->path_label, LV_ALIGN_TOP_MID, 0, LV_PCT(50));
 
     // 目录内容展示列表
@@ -534,13 +532,12 @@ static void brower_file_event_handler(lv_event_t * e)
 {
     lv_event_code_t code = lv_event_get_code(e);
     lv_obj_t * obj       = lv_event_get_user_data(e);
-    lv_obj_t * btn       = lv_event_get_target(e);
 
     lv_100ask_file_explorer_t * explorer = (lv_100ask_file_explorer_t *)obj;
 
     if(code == LV_EVENT_VALUE_CHANGED) {
         // struct stat stat_buf;
-        char * file_name[LV_100ASK_FILE_EXPLORER_PATH_MAX_LEN];
+        char file_name[LV_100ASK_FILE_EXPLORER_PATH_MAX_LEN];
         char * str_fn = NULL;
         uint16_t row;
         uint16_t col;
@@ -611,25 +608,25 @@ static void show_dir(lv_obj_t * obj, char * path)
         }
 
         // 识别并展示文件
-        if(str_end_with(fn, ".png", false) || str_end_with(fn, ".jpg", false) || str_end_with(fn, ".jpeg", false) ||
-           str_end_with(fn, ".bmp", false) || str_end_with(fn, ".gif", false)) {
+        if(is_end_with(fn, ".png", false) || is_end_with(fn, ".jpg", false) || is_end_with(fn, ".jpeg", false) ||
+           is_end_with(fn, ".bmp", false) || is_end_with(fn, ".gif", false)) {
             lv_table_set_cell_value_fmt(explorer->file_list, index, 0, LV_SYMBOL_IMAGE "  %s", fn);
             lv_table_set_cell_value(explorer->file_list, index, 1, "1");
-        } else if(str_end_with(fn, ".mp3", false) || str_end_with(fn, ".wav", false) ||
-                  str_end_with(fn, ".ogg", false) || str_end_with(fn, ".m4a", false) ||
-                  str_end_with(fn, ".aac", false) || str_end_with(fn, ".pcm", false) ||
-                  str_end_with(fn, ".mid", false) || str_end_with(fn, ".midi", false)) {
+        } else if(is_end_with(fn, ".mp3", false) || is_end_with(fn, ".wav", false) ||
+                  is_end_with(fn, ".ogg", false) || is_end_with(fn, ".m4a", false) ||
+                  is_end_with(fn, ".aac", false) || is_end_with(fn, ".pcm", false) ||
+                  is_end_with(fn, ".mid", false) || is_end_with(fn, ".midi", false)) {
             lv_table_set_cell_value_fmt(explorer->file_list, index, 0, LV_SYMBOL_AUDIO "  %s", fn);
             lv_table_set_cell_value(explorer->file_list, index, 1, "2");
-        } else if(str_end_with(fn, ".mp4", false)) {
+        } else if(is_end_with(fn, ".mp4", false)) {
             lv_table_set_cell_value_fmt(explorer->file_list, index, 0, LV_SYMBOL_VIDEO "  %s", fn);
             lv_table_set_cell_value(explorer->file_list, index, 1, "3");
-        } else if(str_end_with(fn, ".txt", false) || str_end_with(fn, ".log", false) ||
-                  str_end_with(fn, ".json", false) || str_end_with(fn, ".md", false) ||
-                  str_end_with(fn, ".conf", false)) {
+        } else if(is_end_with(fn, ".txt", false) || is_end_with(fn, ".log", false) ||
+                  is_end_with(fn, ".json", false) || is_end_with(fn, ".md", false) ||
+                  is_end_with(fn, ".conf", false)) {
             lv_table_set_cell_value_fmt(explorer->file_list, index, 0, LV_SYMBOL_TXT "  %s", fn);
             lv_table_set_cell_value(explorer->file_list, index, 1, "4");
-        } else if(str_end_with(fn, ".", false) || str_end_with(fn, "..", false)) {
+        } else if(is_end_with(fn, ".", false) || is_end_with(fn, "..", false)) {
             /*is dir*/
             // lv_table_set_cell_value_fmt(explorer->file_list, index, 0, LV_SYMBOL_DIRECTORY "  %s", fn);
             continue;

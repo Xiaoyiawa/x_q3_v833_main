@@ -4,6 +4,7 @@
 #include "page_audio.h"
 #include "page_midi.h"
 #include "page_image.h"
+#include "page_txt.h"
 
 typedef struct
 {

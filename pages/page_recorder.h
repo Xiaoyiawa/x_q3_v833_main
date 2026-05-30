@@ -13,6 +13,7 @@ extern "C" {
 #include "../lv_lib_100ask/lv_lib_100ask.h"
 #include "page_manager.h"
 #include "platform/alsa_rec.h"
+#include "platform/alsa_mixer.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

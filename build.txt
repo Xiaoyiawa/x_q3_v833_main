@@ -1,0 +1,3 @@
+[CC]  /home/xiaoyi/x_q3_v833_main/pages/page_recorder.c
+[CC]  LINK ALL
+ALL DONE

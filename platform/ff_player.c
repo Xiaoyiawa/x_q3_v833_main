@@ -9,6 +9,7 @@
 
 #define BUFFER_SIZE 4096
 #define MAX_CHANNELS 6
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 static void * player_thread_func(void * arg);
 static bool ffmpeg_pix_fmt_has_alpha(enum AVPixelFormat pix_fmt);
@@ -384,15 +385,16 @@ static bool ffmpeg_pix_fmt_is_yuv(enum AVPixelFormat pix_fmt)
 static void * player_thread_func(void * arg)
 {
     ff_player_t * player = (ff_player_t *)arg;
-
+    uint8_t * audio_buffer = NULL;              // <-- 移到这里，在 goto 可能发生之前
     AVPacket * packet = av_packet_alloc();
     AVFrame * frame   = av_frame_alloc();
+
     if(!packet || !frame) {
         fprintf(stderr, "[ff_player]无法分配数据包或帧\n");
         goto cleanup;
     }
 
-    uint8_t * audio_buffer = malloc(BUFFER_SIZE * player->channels * 2); // S16LE
+    audio_buffer = malloc(BUFFER_SIZE * player->channels * 2);
     if(!audio_buffer) {
         fprintf(stderr, "[ff_player]无法分配音频缓冲区\n");
         goto cleanup;
@@ -466,8 +468,6 @@ static void * player_thread_func(void * arg)
                                               frame->nb_samples);
 
                 if(out_samples > 0) {
-                    int data_size = out_samples * player->channels * 2; // S16LE
-
                     // 写入ALSA设备
                     snd_pcm_sframes_t frames_written = snd_pcm_writei(player->pcm_handle, audio_buffer, out_samples);
                     if(frames_written < 0) {
@@ -503,24 +503,15 @@ static void * player_thread_func(void * arg)
                 sws_scale(player->sws_ctx, (const uint8_t * const *)frame->data, frame->linesize, 0,
                           player->video_codec_ctx->height, player->video_dst_data, player->video_dst_linesize);
 
-                // 更新 LVGL 图像（需要线程安全）
-                // 然而线程不安全是能跑的，async_call反而会崩（因为有些东西没处理好，以后再说，反正现在能用了）
+                // 更新 LVGL 图像
                 lv_img_cache_invalidate_src(lv_img_get_src(player->video_area));
                 lv_obj_invalidate(player->video_area);
-                /*
-                while(player->video_refresh_request) {
-                    usleep(2000);
-                }
-                player->video_refresh_request = true;
-                lv_async_call(video_refresh_cb, player);
-                */
 
                 av_frame_unref(frame);
             }
             av_packet_unref(packet);
             continue;
         }
-
     }
 
 cleanup:

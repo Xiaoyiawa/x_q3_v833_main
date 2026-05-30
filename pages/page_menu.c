@@ -10,6 +10,7 @@
 #include "page_recorder.h"
 #include "page_usb.h"
 #include "page_upgrade.h"
+#include "page_led.h"
 #include "main.h"
 #include "platform/str_utils.h"
 
@@ -31,6 +32,7 @@ static void btn_recorder_click(lv_event_t * e);
 static void btn_usb_click(lv_event_t * e);
 static void btn_2048_click(lv_event_t * e);
 static void btn_upgrade_click(lv_event_t * e);
+static void btn_led_click(lv_event_t * e);
 
 static lv_obj_t * page_menu_obj(MenuPage * page);
 
@@ -122,6 +124,14 @@ lv_obj_t * page_menu_obj(MenuPage * page)
     lv_obj_center(btn_label_upgrade);
     lv_obj_add_event_cb(btn_upgrade, btn_upgrade_click, LV_EVENT_CLICKED, NULL);
 
+    lv_obj_t * btn_led = lv_btn_create(container);
+    lv_obj_set_size(btn_led, lv_pct(64), lv_pct(32));
+    lv_obj_align(btn_led, LV_FLEX_ALIGN_CENTER, 0, 0);
+    lv_obj_t * btn_label_led = lv_label_create(btn_led);
+    lv_label_set_text(btn_label_led, "LED");
+    lv_obj_center(btn_label_led);
+    lv_obj_add_event_cb(btn_led, btn_led_click, LV_EVENT_CLICKED, NULL);
+
     lv_obj_t * btn_usb = lv_btn_create(container);
     lv_obj_set_size(btn_usb, lv_pct(64), lv_pct(32));
     lv_obj_align(btn_usb, LV_FLEX_ALIGN_CENTER, 0, 0);
@@ -189,4 +199,9 @@ static void btn_2048_click(lv_event_t * e)
 static void btn_upgrade_click(lv_event_t * e)
 {
     page_open(page_upgrade_create("https://raw.giteeusercontent.com/testxiaoyi/demo_upgrade/raw/master/version.json"));
+}
+
+static void btn_led_click(lv_event_t * e)
+{   page_open(page_led_create());
+
 }

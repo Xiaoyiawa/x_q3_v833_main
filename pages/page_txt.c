@@ -277,8 +277,7 @@ static void update_display(TxtPage * txt)
     if(!txt->file_content || !txt->text_label || !txt->page_label || !txt->page_starts) return;
 
     long start_pos = txt->page_starts[txt->current_page];
-    long end_pos =
-        (txt->current_page + 1 < txt->total_pages) ? txt->page_starts[txt->current_page + 1] : txt->file_size;
+    long end_pos = (txt->current_page + 1 < txt->total_pages) ? txt->page_starts[txt->current_page + 1] : txt->file_size;
 
     long page_len = end_pos - start_pos;
     if(page_len <= 0) {
@@ -290,7 +289,8 @@ static void update_display(TxtPage * txt)
     lv_coord_t max_width   = lv_obj_get_content_width(txt->text_label);
     lv_coord_t space_width = lv_font_get_glyph_width(font, ' ', 0);
 
-    char display_buffer[2048];
+    static char display_buffer[2048];       // 改为 static，避免栈溢出
+    display_buffer[0] = '\0';              // 每次使用前清空
     int buf_idx           = 0;
     int line_count        = 0;
     lv_coord_t line_width = 0;

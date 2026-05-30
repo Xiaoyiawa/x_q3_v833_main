@@ -88,6 +88,7 @@
 #define LV_TICK_CUSTOM 1
 #if LV_TICK_CUSTOM
     #define LV_TICK_CUSTOM_INCLUDE <stdint.h>         /*Header for the system time function*/
+    extern uint32_t tick_get(void);
     #define LV_TICK_CUSTOM_SYS_TIME_EXPR (tick_get())    /*Expression evaluating to current system time in ms*/
 #endif   /*LV_TICK_CUSTOM*/
 

@@ -1,5 +1,9 @@
 #include "page_2048.h"
 
+
+#define SAVE_PATH "./setting/2048.json"
+
+
 static void reset_click(lv_event_t * e);
 static void game_value_changed(lv_event_t * e);
 static void page_2048_destroy(void * page);
@@ -75,7 +79,7 @@ static void init_new_game_and_save(Page2048 * p)
 static void save_game_state(Page2048 * p)
 {
     if (!p) return;
-    uint16_t matrix[MATRIX_SIZE][MATRIX_SIZE];
+    uint16_t matrix[4][4];
     lv_100ask_2048_get_matrix(p->game, matrix);
     uint16_t score = lv_100ask_2048_get_score(p->game);
 
@@ -83,8 +87,8 @@ static void save_game_state(Page2048 * p)
     if (!root) return;
 
     cJSON *grid = cJSON_CreateArray();
-    for (int i = 0; i < MATRIX_SIZE; i++) {
-        for (int j = 0; j < MATRIX_SIZE; j++) {
+    for (int i = 0; i < 4; i++) {
+        for (int j = 0; j < 4; j++) {
             cJSON_AddItemToArray(grid, cJSON_CreateNumber(matrix[i][j]));
         }
     }
@@ -135,12 +139,12 @@ static bool load_game_state(Page2048 * p)
     bool valid = false;
     if (grid && cJSON_IsArray(grid) && score_json) {
         int array_size = cJSON_GetArraySize(grid);
-        if (array_size == MATRIX_SIZE * MATRIX_SIZE) {
-            uint16_t matrix[MATRIX_SIZE][MATRIX_SIZE];
+        if (array_size == 4 * 4) {
+            uint16_t matrix[4][4];
             int idx = 0;
             int all_zero = 1;
-            for (int i = 0; i < MATRIX_SIZE; i++) {
-                for (int j = 0; j < MATRIX_SIZE; j++) {
+            for (int i = 0; i < 4; i++) {
+                for (int j = 0; j < 4; j++) {
                     cJSON *item = cJSON_GetArrayItem(grid, idx++);
                     matrix[i][j] = (uint16_t)cJSON_GetNumberValue(item);
                     if (matrix[i][j] != 0) all_zero = 0;

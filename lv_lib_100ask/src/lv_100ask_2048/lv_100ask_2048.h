@@ -22,7 +22,7 @@ extern "C" {
  *********************/
 #ifdef LV_100ASK_2048_MATRIX_SIZE
     #define MATRIX_SIZE     LV_100ASK_2048_MATRIX_SIZE
-#elif
+#else
     #define MATRIX_SIZE     4
 #endif
 

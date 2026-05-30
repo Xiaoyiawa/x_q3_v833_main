@@ -107,6 +107,8 @@ int main(int argc, char * argv[])
     system("killall robotd");
     system("killall robot_run");
     system("killall robot_run_1");
+    system("echo 0 > /dev/led_ctrl");
+    system("mkdir -p /tmp/dendro/wpa_ctrl");
     usleep(100000);
 
 

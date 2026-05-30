@@ -137,7 +137,7 @@ static void timer_battery_tick(lv_timer_t * e)
     HomePage * page = (HomePage *)e->user_data;
     if(!page) return;
 
-    char battery_text[24];
+    char battery_text[32];
     uint8_t capacity        = battery_get_capacity();
     battery_status_t status = battery_get_status();
 

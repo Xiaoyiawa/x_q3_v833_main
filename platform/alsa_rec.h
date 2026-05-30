@@ -14,6 +14,7 @@
 #include <sys/stat.h>
 
 // FFmpeg 头文件
+#include <libavutil/opt.h>
 #include <libavcodec/avcodec.h>
 #include <libavutil/avutil.h>
 #include <libavutil/channel_layout.h>

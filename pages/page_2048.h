@@ -17,14 +17,6 @@ extern "C" {
 #include <errno.h>
 
 /*********************
- *      DEFINES
- *********************/
-
-#define MATRIX_SIZE 4
-#define SAVE_PATH "./setting/2048.json"
-
-
-/*********************
  *      TYPEDEFS
  *********************/
 

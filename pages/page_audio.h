@@ -17,6 +17,7 @@ extern "C" {
 #include <unistd.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <main.h>
 
 /*********************
  *      DEFINES

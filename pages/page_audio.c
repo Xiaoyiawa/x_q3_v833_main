@@ -99,7 +99,7 @@ static lv_obj_t * page_audio_obj(AudioPage * page, char * filename)
     lv_obj_t * clock = lv_text_clock_create(screen);
     lv_obj_set_size(clock, lv_pct(100), lv_pct(12));
     lv_obj_align(clock, LV_ALIGN_TOP_MID, 0, lv_pct(3));
-    lv_obj_set_style_text_align(clock, LV_TEXT_ALIGN_CENTER, NULL);
+    lv_obj_set_style_text_align(clock, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
 
     page->timer = lv_timer_create(timer_tick, 250, page);
 

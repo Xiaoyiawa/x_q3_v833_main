@@ -37,7 +37,7 @@ static double lv_100ask_calc_term(lv_obj_t * obj);
 static double lv_100ask_calc_factor(lv_obj_t * obj);
 static double lv_100ask_calc_tokenizer_num(char * curr_char);
 static void lv_100ask_calc_accept(lv_obj_t * obj, lv_100ask_calc_token_t token);
-static void lv_100ask_calc_error(lv_100ask_calc_error_t error_code, lv_100ask_calc_error_t err);
+static void lv_100ask_calc_error(lv_100ask_calc_t * calc, lv_100ask_calc_error_t err);
 static void lv_100ask_calc_tokenizer_next(lv_obj_t * obj);
 static bool lv_100ask_calc_tokenizer_finished(lv_100ask_calc_token_t current_token, char * curr_char);
 
@@ -158,7 +158,7 @@ static void lv_100ask_calc_constructor(const lv_obj_class_t * class_p, lv_obj_t 
 
     lv_textarea_set_one_line(calc->ta_input, true);
     lv_textarea_set_cursor_click_pos(calc->ta_input, false);
-    lv_textarea_set_max_length(calc->ta_input, LV_100ASK_CALC_HISTORY_MAX_LINE);
+    lv_textarea_set_max_length(calc->ta_input, LV_100ASK_CALC_EXPR_LEN - 1);
     lv_obj_set_style_text_align(calc->ta_input, LV_TEXT_ALIGN_RIGHT, LV_STATE_DEFAULT);
     lv_obj_clear_flag(calc->ta_hist, LV_OBJ_FLAG_SCROLLABLE);
     lv_textarea_set_text(calc->ta_input, "");
@@ -210,7 +210,7 @@ static void calc_btnm_changed_event_cb(lv_event_t * e)
 
             if(calc->error_code != no_error) {
                 // Find the error code and display the corresponding message
-                for (int i = 0; i < sizeof(error_table); i++)
+                for (int i = 0; i < sizeof(error_table) / sizeof(error_table[0]); i++)
                 {
                     if (error_table[i].error_code == calc->error_code)
                     {
@@ -299,7 +299,7 @@ static lv_100ask_calc_token_t lv_100ask_calc_get_next_token(lv_obj_t * obj)
     lv_100ask_calc_t * calc = (lv_100ask_calc_t *)obj;
 
     // End of expression
-    if(calc->curr_char == '\0') return TOKENIZER_ENDOFINPUT;
+    if(*calc->curr_char == '\0') return TOKENIZER_ENDOFINPUT;
 
     if(isdigit(*calc->curr_char)) {
         int dot_count = 0;
@@ -454,7 +454,7 @@ static double lv_100ask_calc_factor(lv_obj_t * obj)
             break;
             // Tokens other than the left parenthesis and numbers have been disposed of by the upper level
             // If there is a token, it must be an expression syntax error
-        default: lv_100ask_calc_error(calc->error_code, syntax_error);
+        default: lv_100ask_calc_error(calc, syntax_error);
     }
 
     // Returns the value of the factor
@@ -480,7 +480,7 @@ static void lv_100ask_calc_accept(lv_obj_t * obj, lv_100ask_calc_token_t token)
 {
     lv_100ask_calc_t * calc = (lv_100ask_calc_t *)obj;
 
-    if(token != calc->current_token) lv_100ask_calc_error(calc->error_code, syntax_error);
+    if(token != calc->current_token) lv_100ask_calc_error(calc, syntax_error);
 
     lv_100ask_calc_tokenizer_next(obj);
 }
@@ -490,11 +490,9 @@ static void lv_100ask_calc_accept(lv_obj_t * obj, lv_100ask_calc_token_t token)
  * @param error_code       Current error_code
  * @param err              Error code to be set
  */
-static void lv_100ask_calc_error(lv_100ask_calc_error_t error_code, lv_100ask_calc_error_t err)
+static void lv_100ask_calc_error(lv_100ask_calc_t * calc, lv_100ask_calc_error_t err)
 {
-    error_code = err;
-
-    LV_UNUSED(error_code);
+    calc->error_code = err;
 }
 
 /**

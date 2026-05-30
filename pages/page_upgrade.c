@@ -694,13 +694,20 @@ static int sha1_verify(const char * file_path, const char * expected_sha1)
 
 static int run_install_script(UpgradePage * page)
 {
-    FILE * fp = popen("/tmp/dendro/install.sh 2>&1", "r");
+    FILE * fp = popen("./tmp/install.sh 2>&1", "r");
     if (!fp) return -1;
-    char line[512], prev_line[512] = "", output_buf[4096] = "";
+
+    static char line[512];         // 改为 static，减少栈占用
+    static char prev_line[512];    // 改为 static
+    static char output_buf[4096];  // 改为 static
     int is_success = 0;
 
+    // 每次调用必须手动清空缓冲区，因为 static 变量会保留上次的内容
+    prev_line[0] = '\0';
+    output_buf[0] = '\0';
+
     while (fgets(line, sizeof(line), fp)) {
-        printf("[ Install ] %s", line);
+        printf("[install.sh] %s", line);
         strcat(output_buf, line);
         size_t len = strlen(line);
         while (len > 0 && (line[len-1] == '\n' || line[len-1] == '\r'))
