@@ -19,6 +19,7 @@ typedef struct
     BasePage base;
     lv_obj_t * label_time;
     lv_obj_t * label_battery;
+    lv_timer_t * battery_timer;
 } MenuPage;
 
 
@@ -35,6 +36,8 @@ static void btn_upgrade_click(lv_event_t * e);
 static void btn_led_click(lv_event_t * e);
 
 static lv_obj_t * page_menu_obj(MenuPage * page);
+static void menu_on_destroy(void * p);
+static void battery_timer_cb(lv_timer_t * timer);
 
 BasePage * page_menu_create(void)
 {
@@ -43,7 +46,17 @@ BasePage * page_menu_create(void)
     memset(page, 0, sizeof(MenuPage));
 
     page->base.obj        = page_menu_obj(page);
+    page->base.on_destroy = menu_on_destroy;   // 注册销毁回调
     return (BasePage *)page;
+}
+
+static void battery_timer_cb(lv_timer_t * timer)
+{
+    lv_obj_t * label = (lv_obj_t *)timer->user_data;
+    uint8_t cap = battery_get_capacity();
+    char buf[16];
+    snprintf(buf, sizeof(buf), "%d%%", cap);
+    lv_label_set_text(label, buf);
 }
 
 lv_obj_t * page_menu_obj(MenuPage * page)
@@ -54,12 +67,6 @@ lv_obj_t * page_menu_obj(MenuPage * page)
     lv_obj_set_style_pad_all(screen, 0, LV_STATE_DEFAULT);
     lv_obj_set_style_border_width(screen, 0, LV_STATE_DEFAULT);
 
-    lv_obj_t * container = lv_obj_create(screen);
-    lv_obj_align(container, LV_ALIGN_TOP_MID, 0, lv_pct(12));
-    lv_obj_set_size(container, lv_pct(100), lv_pct(88));
-    lv_obj_set_flex_flow(container, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_scroll_dir(container, LV_DIR_VER);
-
     lv_obj_t * btn_back = lv_btn_create(screen);
     lv_obj_set_size(btn_back, lv_pct(25), lv_pct(12));
     lv_obj_align(btn_back, LV_ALIGN_TOP_LEFT, 0, 0);
@@ -68,6 +75,23 @@ lv_obj_t * page_menu_obj(MenuPage * page)
     lv_obj_center(btn_back_label);
     lv_obj_add_event_cb(btn_back, btn_back_click, LV_EVENT_CLICKED, NULL);
 
+    page->label_battery = lv_label_create(screen);
+    lv_obj_align(page->label_battery, LV_ALIGN_TOP_RIGHT, -10, 5);
+    lv_obj_set_style_text_color(page->label_battery, lv_color_hex(0x333333), 0);
+    uint8_t cap = battery_get_capacity();
+    char buf[16];
+    snprintf(buf, sizeof(buf), "%d%%", cap);
+    lv_label_set_text(page->label_battery, buf);
+
+    page->battery_timer = lv_timer_create(battery_timer_cb, 1000, page->label_battery);
+    
+    lv_obj_t * container = lv_obj_create(screen);
+    lv_obj_align(container, LV_ALIGN_TOP_MID, 0, lv_pct(12));
+    lv_obj_set_size(container, lv_pct(100), lv_pct(88));
+    lv_obj_set_flex_flow(container, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_scroll_dir(container, LV_DIR_VER);
+
+    /* ===== 菜单项 ===== */
     lv_obj_t * btn_file_manager = lv_btn_create(container);
     lv_obj_set_size(btn_file_manager, lv_pct(64), lv_pct(32));
     lv_obj_align(btn_file_manager, LV_FLEX_ALIGN_CENTER, 0, 0);
@@ -151,7 +175,17 @@ lv_obj_t * page_menu_obj(MenuPage * page)
     return screen;
 }
 
-static void btn_demo_click(lv_event_t * e) // static可以防止同名冲突
+static void menu_on_destroy(void * p)
+{
+    MenuPage * page = (MenuPage *)p;
+    if (page->battery_timer) {
+        lv_timer_del(page->battery_timer);
+        page->battery_timer = NULL;
+    }
+}
+
+/* ===== 事件回调 ===== */
+static void btn_demo_click(lv_event_t * e)
 {
     page_open(demo_page_create());
 }
@@ -202,6 +236,6 @@ static void btn_upgrade_click(lv_event_t * e)
 }
 
 static void btn_led_click(lv_event_t * e)
-{   page_open(page_led_create());
-
+{
+    page_open(page_led_create());
 }
