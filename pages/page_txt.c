@@ -1,4 +1,11 @@
 #include "page_txt.h"
+#include "main.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "lvgl/src/misc/lv_txt.h"
+
+#define MAX_LINES   9
 
 typedef struct
 {
@@ -37,7 +44,9 @@ BasePage * page_txt_create(char * filename)
     TxtPage * txt = malloc(sizeof(TxtPage));
     if(!txt) return NULL;
     memset(txt, 0, sizeof(TxtPage));
-
+    
+    sys_set_dont_timeout(true);
+    
     lv_obj_t * screen = lv_obj_create(lv_scr_act());
     lv_obj_remove_style_all(screen);
     lv_obj_set_size(screen, lv_pct(100), lv_pct(100));
@@ -442,4 +451,5 @@ static void txt_page_destroy(void * page)
     TxtPage * txt = (TxtPage *)page;
     if(txt->file_content) free(txt->file_content);
     if(txt->page_starts) free(txt->page_starts);
+    sys_set_dont_timeout(false);
 }

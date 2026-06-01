@@ -694,7 +694,7 @@ static int sha1_verify(const char * file_path, const char * expected_sha1)
 
 static int run_install_script(UpgradePage * page)
 {
-    FILE * fp = popen("./tmp/install.sh 2>&1", "r");
+    FILE * fp = popen("/tmp/dendro/install.sh 2>&1", "r");
     if (!fp) return -1;
 
     static char line[512];         // 改为 static，减少栈占用
