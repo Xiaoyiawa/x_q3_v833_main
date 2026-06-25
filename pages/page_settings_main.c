@@ -1,6 +1,7 @@
 #include "page_settings_main.h"
 
 #include "page_demo.h"
+#include "page_txt.h"
 #include "main.h"
 #include "platform/str_utils.h"
 #include "platform/audio_ctrl.h"
@@ -99,7 +100,7 @@ static void btn_about_click(lv_event_t * e)
 
 static void btn_developer_click(lv_event_t * e)
 {
-    custom_msgbox_create("开发者", "主要开发者：RobinNotBad\n上游仓库：github.com/RobinNotBad/lvgl_v833_q3\n 其他开发者：Xiaoyi_w , meowjiao\n下游仓库：github.com/Xiaoyiawa/x_q3_v833_main", NULL, true);
+    page_open(page_txt_create("./res/about.txt"));
 }
 
 static void slider_brightness_changed(lv_event_t * e)
