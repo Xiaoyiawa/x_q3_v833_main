@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #include "lvgl/src/misc/lv_txt.h"
 
 #define MAX_LINES   9
@@ -55,7 +56,7 @@ BasePage * page_txt_create(char * filename)
     FILE * fp = fopen(filename, "r");
     if(fp == NULL) {
         lv_obj_t * error_label = lv_label_create(screen);
-        lv_label_set_text(error_label, "Error: 无法打开此文件!");
+        lv_label_set_text_fmt(error_label, "Error: 无法打开此文件\n%s", strerror(errno));
         lv_obj_align(error_label, LV_ALIGN_CENTER, 0, 0);
 
         lv_obj_t * btn_back = lv_btn_create(screen);

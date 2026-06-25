@@ -109,7 +109,7 @@ static void btn_scan_click(lv_event_t * e)
 
 static void btn_menu_click(lv_event_t * e)
 {
-    page_open(page_menu_create());
+    page_open_obj(page_menu());
 }
 
 static void timer_time_tick(lv_timer_t * e)
@@ -137,7 +137,7 @@ static void timer_battery_tick(lv_timer_t * e)
     HomePage * page = (HomePage *)e->user_data;
     if(!page) return;
 
-    char battery_text[32];
+    char battery_text[24];
     uint8_t capacity        = battery_get_capacity();
     battery_status_t status = battery_get_status();
 

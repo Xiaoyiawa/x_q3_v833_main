@@ -15,7 +15,7 @@ extern "C" {
 #include <stdlib.h>
 #include <stdbool.h>
 #include <time.h>
-#include "page_manager.h"
+#include "platform/page_manager.h"
 
 /*********************
  *      DEFINES

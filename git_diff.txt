@@ -1,0 +1,1989 @@
+diff --git a/Makefile b/Makefile
+index acd1b64..4b8d540 100755
+--- a/Makefile
++++ b/Makefile
+@@ -38,12 +38,13 @@ all: default
+ 
+ %.o: %.c
+ 	@$(CC)  $(CFLAGS) -c $< -o $@
+-	@echo "[CC]  $<"
++	@echo "CC  $<"
+     
+ default: $(AOBJS) $(COBJS) $(MAINOBJ)
+-	@echo "[CC]  LINK ALL"
++	@echo "CC  LINK ALL"
+ 	@$(CC) -o $(BIN) $(MAINOBJ) $(AOBJS) $(COBJS) $(LDFLAGS)
+ 	@echo "ALL DONE"
+ 	
+ clean: 
+-	rm -f $(BIN) $(AOBJS) $(COBJS) $(MAINOBJ)
+\ No newline at end of file
++	rm -f $(BIN) $(AOBJS) $(COBJS) $(MAINOBJ)
++
+diff --git a/lv_lib_100ask/src/lv_100ask_2048/lv_100ask_2048.c b/lv_lib_100ask/src/lv_100ask_2048/lv_100ask_2048.c
+index c89027d..4577ffa 100644
+--- a/lv_lib_100ask/src/lv_100ask_2048/lv_100ask_2048.c
++++ b/lv_lib_100ask/src/lv_100ask_2048/lv_100ask_2048.c
+@@ -113,7 +113,7 @@ void lv_100ask_2048_set_new_game(lv_obj_t * obj)
+ 
+     init_matrix_num(game_2048->matrix);
+     update_btnm_map(game_2048->btnm_map, game_2048->matrix);
+-    lv_btnmatrix_set_map(game_2048->btnm, (const char **)game_2048->btnm_map);
++    lv_btnmatrix_set_map(game_2048->btnm, game_2048->btnm_map);
+ 
+     lv_event_send(obj, LV_EVENT_VALUE_CHANGED, NULL);
+ }
+@@ -188,7 +188,7 @@ static void lv_100ask_2048_constructor(const lv_obj_class_t * class_p, lv_obj_t
+         }
+         else
+         {
+-            game_2048->btnm_map[index] = lv_mem_alloc(6);
++            game_2048->btnm_map[index] = lv_mem_alloc(5);
+             strcpy(game_2048->btnm_map[index], " ");
+         }
+     }
+@@ -212,7 +212,7 @@ static void lv_100ask_2048_constructor(const lv_obj_class_t * class_p, lv_obj_t
+     lv_group_remove_obj(game_2048->btnm);
+     lv_obj_add_flag(game_2048->btnm, LV_OBJ_FLAG_EVENT_BUBBLE);
+ 
+-    lv_btnmatrix_set_map(game_2048->btnm, (const char **)game_2048->btnm_map);
++    lv_btnmatrix_set_map(game_2048->btnm, game_2048->btnm_map);
+     lv_btnmatrix_set_btn_ctrl_all(game_2048->btnm, LV_BTNMATRIX_CTRL_DISABLED);
+ 
+     lv_obj_add_event_cb(game_2048->btnm, btnm_event_cb, LV_EVENT_ALL, NULL);
+@@ -226,7 +226,7 @@ static void lv_100ask_2048_destructor(const lv_obj_class_t * class_p, lv_obj_t *
+ 
+     lv_100ask_2048_t * game_2048 = (lv_100ask_2048_t *)obj;
+ 
+-    uint16_t index;
++    uint16_t index, count;
+     for (index = 0; index < game_2048->map_count; index++)
+     {
+         lv_mem_free(game_2048->btnm_map[index]);
+@@ -246,6 +246,7 @@ static void lv_100ask_2048_event(const lv_obj_class_t * class_p, lv_event_t * e)
+ 
+     bool success = false;
+     lv_event_code_t code = lv_event_get_code(e);
++    lv_obj_t * btnm = lv_event_get_target(e);
+     lv_obj_t * obj = lv_event_get_current_target(e);
+ 
+     lv_100ask_2048_t * game_2048 = (lv_100ask_2048_t *)obj;
+@@ -313,7 +314,7 @@ static void lv_100ask_2048_event(const lv_obj_class_t * class_p, lv_event_t * e)
+     {
+         addRandom(game_2048->matrix);
+         update_btnm_map(game_2048->btnm_map, game_2048->matrix);
+-        lv_btnmatrix_set_map(game_2048->btnm, (const char **)game_2048->btnm_map);
++        lv_btnmatrix_set_map(game_2048->btnm, game_2048->btnm_map);
+ 
+         res = lv_event_send(obj, LV_EVENT_VALUE_CHANGED, NULL);
+         if(res != LV_RES_OK) return;
+@@ -326,13 +327,14 @@ static void btnm_event_cb(lv_event_t * e)
+     lv_event_code_t code = lv_event_get_code(e);
+     lv_obj_t * btnm = lv_event_get_target(e);
+     lv_obj_t * parent = lv_obj_get_parent(btnm);
++
+      lv_100ask_2048_t * game_2048 = (lv_100ask_2048_t *)parent;
+ 
+     if(code == LV_EVENT_DRAW_PART_BEGIN) {
+         lv_obj_draw_part_dsc_t * dsc = lv_event_get_param(e);
+ 
+         /*Change the draw descriptor the button*/
+-        if(dsc->label_dsc)
++        if((dsc->id >= 0) && (dsc->label_dsc))
+         {
+             uint16_t x, y, num;
+ 
+@@ -436,6 +438,11 @@ static void update_btnm_map(char * btnm_map[], uint16_t matrix[MATRIX_SIZE][MATR
+ static char* int_to_str(char * str, uint16_t num)
+ {
+ 	uint8_t i = 0;//指示填充str
++	if(num < 0)//如果num为负数，将num变正
++	{
++		num = -num;
++		str[i++] = '-';
++	}
+ 	//转换
+ 	do
+ 	{
+@@ -654,45 +661,5 @@ static bool game_over(uint16_t matrix[MATRIX_SIZE][MATRIX_SIZE])
+     return ended;
+ }
+ 
+-void lv_100ask_2048_set_matrix(lv_obj_t * obj, uint16_t matrix[MATRIX_SIZE][MATRIX_SIZE])
+-{
+-    LV_ASSERT_OBJ(obj, MY_CLASS);
+-    lv_100ask_2048_t * game_2048 = (lv_100ask_2048_t *)obj;
+-
+-    uint8_t x, y;
+-    for (x = 0; x < MATRIX_SIZE; x++) {
+-        for (y = 0; y < MATRIX_SIZE; y++) {
+-            game_2048->matrix[x][y] = matrix[x][y];
+-        }
+-    }
+-    lv_100ask_2048_refresh(obj);
+-}
+-
+-void lv_100ask_2048_set_score(lv_obj_t * obj, uint16_t score)
+-{
+-    LV_ASSERT_OBJ(obj, MY_CLASS);
+-    lv_100ask_2048_t * game_2048 = (lv_100ask_2048_t *)obj;
+-    game_2048->score = score;
+-}
+-
+-void lv_100ask_2048_refresh(lv_obj_t * obj)
+-{
+-    LV_ASSERT_OBJ(obj, MY_CLASS);
+-    lv_100ask_2048_t * game_2048 = (lv_100ask_2048_t *)obj;
+-    update_btnm_map(game_2048->btnm_map, game_2048->matrix);
+-    lv_btnmatrix_set_map(game_2048->btnm, (const char **)game_2048->btnm_map);
+-}
+-
+-void lv_100ask_2048_get_matrix(lv_obj_t * obj, uint16_t out_matrix[MATRIX_SIZE][MATRIX_SIZE])
+-{
+-    LV_ASSERT_OBJ(obj, MY_CLASS);
+-    lv_100ask_2048_t * game_2048 = (lv_100ask_2048_t *)obj;
+-    uint8_t x, y;
+-    for (x = 0; x < MATRIX_SIZE; x++) {
+-        for (y = 0; y < MATRIX_SIZE; y++) {
+-            out_matrix[x][y] = game_2048->matrix[x][y];
+-        }
+-    }
+-}
+ 
+ #endif  /*LV_USE_100ASK_2048*/
+diff --git a/lv_lib_100ask/src/lv_100ask_2048/lv_100ask_2048.h b/lv_lib_100ask/src/lv_100ask_2048/lv_100ask_2048.h
+index 3410640..a6669b0 100644
+--- a/lv_lib_100ask/src/lv_100ask_2048/lv_100ask_2048.h
++++ b/lv_lib_100ask/src/lv_100ask_2048/lv_100ask_2048.h
+@@ -22,7 +22,7 @@ extern "C" {
+  *********************/
+ #ifdef LV_100ASK_2048_MATRIX_SIZE
+     #define MATRIX_SIZE     LV_100ASK_2048_MATRIX_SIZE
+-#else
++#elif
+     #define MATRIX_SIZE     4
+ #endif
+ 
+@@ -54,12 +54,6 @@ lv_obj_t * lv_100ask_2048_create(lv_obj_t * parent);
+  *====================*/
+ void lv_100ask_2048_set_new_game(lv_obj_t * obj);
+ 
+-void lv_100ask_2048_set_matrix(lv_obj_t * obj, uint16_t matrix[MATRIX_SIZE][MATRIX_SIZE]);
+-
+-void lv_100ask_2048_set_score(lv_obj_t * obj, uint16_t score);
+-
+-void lv_100ask_2048_refresh(lv_obj_t * obj);
+-
+ /*=====================
+  * Getter functions
+  *====================*/
+@@ -67,8 +61,6 @@ uint16_t lv_100ask_2048_get_best_tile(lv_obj_t * obj);
+ 
+ uint16_t lv_100ask_2048_get_score(lv_obj_t * obj);
+ 
+-void lv_100ask_2048_get_matrix(lv_obj_t * obj, uint16_t out_matrix[MATRIX_SIZE][MATRIX_SIZE]);
+-
+ bool lv_100ask_2048_get_status(lv_obj_t * obj);
+ 
+ /*=====================
+diff --git a/lv_lib_100ask/src/lv_100ask_file_explorer/lv_100ask_file_explorer.c b/lv_lib_100ask/src/lv_100ask_file_explorer/lv_100ask_file_explorer.c
+index 2a0c140..eab5e6a 100644
+--- a/lv_lib_100ask/src/lv_100ask_file_explorer/lv_100ask_file_explorer.c
++++ b/lv_lib_100ask/src/lv_100ask_file_explorer/lv_100ask_file_explorer.c
+@@ -16,9 +16,9 @@
+  *********************/
+ #define MY_CLASS &lv_100ask_file_explorer_class
+ 
+-#define FILE_EXPLORER_HEAD_HEIGHT (60)
+-#define FILE_EXPLORER_QUICK_ACCESS_AREA_WIDTH (22)
+-#define FILE_EXPLORER_BROWER_AREA_WIDTH (100 - FILE_EXPLORER_QUICK_ACCESS_AREA_WIDTH)
++#define FILE_EXPLORER_HEAD_HEIGHT               (60)
++#define FILE_EXPLORER_QUICK_ACCESS_AREA_WIDTH   (22)
++#define FILE_EXPLORER_BROWER_AREA_WIDTH         (100 - FILE_EXPLORER_QUICK_ACCESS_AREA_WIDTH)
+ 
+ /**********************
+  *      TYPEDEFS
+@@ -32,8 +32,8 @@ static void lv_100ask_file_explorer_destructor(const lv_obj_class_t * class_p, l
+ 
+ static void brower_file_event_handler(lv_event_t * e);
+ #if LV_100ASK_FILE_EXPLORER_QUICK_ACCESS
+-static void quick_access_event_handler(lv_event_t * e);
+-static void quick_access_ctrl_btn_event_handler(lv_event_t * e);
++    static void quick_access_event_handler(lv_event_t * e);
++    static void quick_access_ctrl_btn_event_handler(lv_event_t * e);
+ #endif
+ 
+ static void init_style(lv_obj_t * obj);
+@@ -51,12 +51,14 @@ static bool is_upper_letter(char c);
+ /**********************
+  *  STATIC VARIABLES
+  **********************/
+-const lv_obj_class_t lv_100ask_file_explorer_class = {.constructor_cb = lv_100ask_file_explorer_constructor,
+-                                                      .destructor_cb  = lv_100ask_file_explorer_destructor,
+-                                                      .width_def      = LV_SIZE_CONTENT,
+-                                                      .height_def     = LV_SIZE_CONTENT,
+-                                                      .instance_size  = sizeof(lv_100ask_file_explorer_t),
+-                                                      .base_class     = &lv_obj_class};
++const lv_obj_class_t lv_100ask_file_explorer_class = {
++    .constructor_cb = lv_100ask_file_explorer_constructor,
++    .destructor_cb  = lv_100ask_file_explorer_destructor,
++    .width_def      = LV_SIZE_CONTENT,
++    .height_def     = LV_SIZE_CONTENT,
++    .instance_size  = sizeof(lv_100ask_file_explorer_t),
++    .base_class     = &lv_obj_class
++};
+ 
+ /**********************
+  *      MACROS
+@@ -74,6 +76,7 @@ lv_obj_t * lv_100ask_file_explorer_create(lv_obj_t * parent)
+     return obj;
+ }
+ 
++
+ /*=====================
+  * Setter functions
+  *====================*/
+@@ -88,22 +91,33 @@ void lv_100ask_file_explorer_set_quick_access_path(lv_obj_t * obj, lv_100ask_fil
+     if((path == NULL) || (strlen(path) <= 0)) return;
+ 
+     char ** dir_str = NULL;
+-    switch(dir) {
+-        case LV_100ASK_EXPLORER_HOME_DIR: dir_str = &(explorer->home_dir); break;
+-        case LV_100ASK_EXPLORER_MUSIC_DIR: dir_str = &(explorer->music_dir); break;
+-        case LV_100ASK_EXPLORER_PICTURES_DIR: dir_str = &(explorer->pictures_dir); break;
+-        case LV_100ASK_EXPLORER_VIDEO_DIR: dir_str = &(explorer->video_dir); break;
++    switch (dir)
++    {
++        case LV_100ASK_EXPLORER_HOME_DIR:
++            dir_str = &(explorer->home_dir);
++            break;
++        case LV_100ASK_EXPLORER_MUSIC_DIR:
++            dir_str = &(explorer->music_dir);
++            break;
++        case LV_100ASK_EXPLORER_PICTURES_DIR:
++            dir_str = &(explorer->pictures_dir);
++            break;
++        case LV_100ASK_EXPLORER_VIDEO_DIR:
++            dir_str = &(explorer->video_dir);
++            break;
+         case LV_100ASK_EXPLORER_DOCS_DIR:
+             dir_str = &(explorer->docs_dir);
+             break;
+-            // case LV_100ASK_EXPLORER_MNT_DIR:
+-            //     dir_str = &(explorer->home_dir);
+-            //     break;
+-            // case LV_100ASK_EXPLORER_FS_DIR:
+-            //     dir_str = &(explorer->home_dir);
+-            //     break;
+-
+-        default: return; break;
++        //case LV_100ASK_EXPLORER_MNT_DIR:
++        //    dir_str = &(explorer->home_dir);
++        //    break;
++        //case LV_100ASK_EXPLORER_FS_DIR:
++        //    dir_str = &(explorer->home_dir);
++        //    break;
++
++        default:
++            return;
++            break;
+     }
+ 
+     /*Free the old text*/
+@@ -123,23 +137,25 @@ void lv_100ask_file_explorer_set_quick_access_path(lv_obj_t * obj, lv_100ask_fil
+     strcpy(*dir_str, path);
+ }
+ 
++
+ void lv_100ask_file_explorer_set_quick_access_state(lv_obj_t * obj, bool state)
+ {
+     LV_ASSERT_OBJ(obj, MY_CLASS);
+ 
+     lv_100ask_file_explorer_t * explorer = (lv_100ask_file_explorer_t *)obj;
+ 
+-    if(state != (lv_obj_has_state(explorer->quick_access_ctrl_btn, LV_STATE_CHECKED))) return;
++    if(state != (lv_obj_has_state(explorer->quick_access_ctrl_btn, LV_STATE_CHECKED)))
++        return;
+ 
+-    if(!lv_obj_has_state(explorer->quick_access_ctrl_btn, LV_STATE_CHECKED))
++    if (!lv_obj_has_state(explorer->quick_access_ctrl_btn, LV_STATE_CHECKED))
+         lv_obj_add_state(explorer->quick_access_ctrl_btn, LV_STATE_CHECKED);
+-    else
+-        lv_obj_clear_state(explorer->quick_access_ctrl_btn, LV_STATE_CHECKED);
++    else lv_obj_clear_state(explorer->quick_access_ctrl_btn, LV_STATE_CHECKED);
+ 
+     lv_event_send(explorer->quick_access_ctrl_btn, LV_EVENT_VALUE_CHANGED, NULL);
+ }
+ #endif
+ 
++
+ void lv_100ask_file_explorer_set_sort(lv_obj_t * obj, lv_100ask_file_explorer_sort_t sort)
+ {
+     LV_ASSERT_OBJ(obj, MY_CLASS);
+@@ -148,15 +164,20 @@ void lv_100ask_file_explorer_set_sort(lv_obj_t * obj, lv_100ask_file_explorer_so
+ 
+     uint16_t sum = lv_table_get_row_cnt(explorer->file_list);
+ 
+-    switch(sort) {
+-        case LV_100ASK_EXPLORER_SORT_KIND: sort_table_items(explorer->file_list, 0, sum - 1); break;
++    switch (sort)
++    {
++        case LV_100ASK_EXPLORER_SORT_KIND:
++            sort_table_items(explorer->file_list, 0, sum - 1);
++            break;
+         case LV_100ASK_EXPLORER_SORT_NAME:
+             /* TODO */
+             break;
+-        default: break;
++        default:
++            break;
+     }
+ }
+ 
++
+ /*=====================
+  * Getter functions
+  *====================*/
+@@ -187,7 +208,7 @@ lv_obj_t * lv_100ask_file_explorer_get_file_list(lv_obj_t * obj)
+     return explorer->file_list;
+ }
+ 
+-lv_obj_t * lv_100ask_file_explorer_get_head_area(lv_obj_t * obj)
++lv_obj_t * lv_100ask_file_explorer_get_head(lv_obj_t * obj)
+ {
+     LV_ASSERT_OBJ(obj, MY_CLASS);
+ 
+@@ -234,14 +255,29 @@ lv_obj_t * lv_100ask_file_explorer_get_quick_access_ctrl_btn(lv_obj_t * obj)
+ }
+ #endif
+ 
++
+ /*=====================
+  * Other functions
+  *====================*/
+ void lv_100ask_file_explorer_open_dir(lv_obj_t * obj, char * dir)
+ {
++    lv_100ask_file_explorer_t * explorer = (lv_100ask_file_explorer_t *)obj;
++
+     show_dir(obj, dir);
+ }
+ 
++void lv_100ask_file_explorer_refresh(lv_obj_t * obj) 
++{
++    lv_100ask_file_explorer_t * explorer = (lv_100ask_file_explorer_t *)obj;
++    // 获取的指针直接传进去会出问题，所以要临时拷贝一下
++    char * cur_path = lv_100ask_file_explorer_get_cur_path(explorer);
++    char * path     = strdup(cur_path);
++    if(path == NULL) return;
++    path[strlen(path) - 1] = '\0'; // 最后的"/"符号要去掉
++    lv_100ask_file_explorer_open_dir(explorer, path);
++    free(path);
++}
++
+ /**********************
+  *   STATIC FUNCTIONS
+  **********************/
+@@ -253,11 +289,11 @@ static void lv_100ask_file_explorer_constructor(const lv_obj_class_t * class_p,
+     lv_100ask_file_explorer_t * explorer = (lv_100ask_file_explorer_t *)obj;
+ 
+ #if LV_100ASK_FILE_EXPLORER_QUICK_ACCESS
+-    explorer->home_dir     = NULL;
+-    explorer->video_dir    = NULL;
++    explorer->home_dir = NULL;
++    explorer->video_dir = NULL;
+     explorer->pictures_dir = NULL;
+-    explorer->music_dir    = NULL;
+-    explorer->docs_dir     = NULL;
++    explorer->music_dir = NULL;
++    explorer->docs_dir = NULL;
+ #endif
+ 
+     lv_memset_00(explorer->cur_path, sizeof(explorer->cur_path));
+@@ -281,7 +317,7 @@ static void lv_100ask_file_explorer_constructor(const lv_obj_class_t * class_p,
+ #if LV_100ASK_FILE_EXPLORER_QUICK_ACCESS
+     lv_obj_set_size(explorer->browser_area, LV_PCT(FILE_EXPLORER_BROWER_AREA_WIDTH), LV_PCT(100));
+ #else
+-    lv_obj_set_size(explorer->browser_area, LV_PCT(100), LV_PCT(100));
++   lv_obj_set_size(explorer->browser_area, LV_PCT(100), LV_PCT(100));
+ #endif
+     lv_obj_set_flex_flow(explorer->browser_area, LV_FLEX_FLOW_COLUMN);
+ 
+@@ -333,9 +369,10 @@ static void lv_100ask_file_explorer_constructor(const lv_obj_class_t * class_p,
+     explorer->path_label = lv_label_create(explorer->head_area);
+     lv_label_set_long_mode(explorer->path_label, LV_LABEL_LONG_CLIP);
+     lv_obj_set_size(explorer->path_label, LV_PCT(100), LV_PCT(100));
+-    lv_label_set_text(explorer->path_label, "/" /*"https://lvgl.100ask.net"*/);
+-    lv_obj_set_style_text_align(explorer->path_label, LV_TEXT_ALIGN_RIGHT, 0);
++    lv_label_set_text(explorer->path_label, "/"/*"https://lvgl.100ask.net"*/);
++    lv_obj_set_style_text_align(explorer->path_label, LV_TEXT_ALIGN_RIGHT, NULL);
+     lv_obj_align(explorer->path_label, LV_ALIGN_TOP_MID, 0, LV_PCT(50));
++    
+ 
+     // 目录内容展示列表
+     explorer->file_list = lv_table_create(explorer->browser_area);
+@@ -395,7 +432,7 @@ static void init_style(lv_obj_t * obj)
+     lv_style_set_radius(&brower_area_style, 0);
+     lv_style_set_border_width(&brower_area_style, 0);
+     lv_style_set_outline_width(&brower_area_style, 0);
+-    // lv_style_set_bg_color(&brower_area_style, lv_color_hex(0xffffff));
++    //lv_style_set_bg_color(&brower_area_style, lv_color_hex(0xffffff));
+ 
+ #if LV_100ASK_FILE_EXPLORER_QUICK_ACCESS
+     // 左侧菜单的风格样式
+@@ -403,7 +440,7 @@ static void init_style(lv_obj_t * obj)
+     lv_style_init(&quick_access_list_style);
+     lv_style_set_border_width(&quick_access_list_style, 0);
+     lv_style_set_outline_width(&quick_access_list_style, 0);
+-    // lv_style_set_bg_color(&quick_access_list_style, lv_color_hex(0x222d36));
++    //lv_style_set_bg_color(&quick_access_list_style, lv_color_hex(0x222d36));
+     lv_style_set_radius(&quick_access_list_style, 0);
+     lv_style_set_pad_all(&quick_access_list_style, 0);
+ 
+@@ -416,7 +453,7 @@ static void init_style(lv_obj_t * obj)
+     // 右侧文件浏览区域的样式风格
+     static lv_style_t file_list_style;
+     lv_style_init(&file_list_style);
+-    // lv_style_set_bg_color(&file_list_style, lv_color_hex(0xffffff));
++    //lv_style_set_bg_color(&file_list_style, lv_color_hex(0xffffff));
+     lv_style_set_pad_all(&file_list_style, 0);
+     lv_style_set_radius(&file_list_style, 0);
+     lv_style_set_border_width(&file_list_style, 0);
+@@ -424,7 +461,7 @@ static void init_style(lv_obj_t * obj)
+ 
+     // 设置 file_explorer 的样式
+     lv_obj_set_style_radius(obj, 0, 0);
+-    // lv_obj_set_style_bg_color(obj, lv_color_hex(0xf2f1f6), 0);
++    //lv_obj_set_style_bg_color(obj, lv_color_hex(0xf2f1f6), 0);
+ 
+     // 在文件浏览列表之上的区域的样式
+     lv_obj_set_style_radius(explorer->head_area, 0, 0);
+@@ -435,8 +472,7 @@ static void init_style(lv_obj_t * obj)
+     // 设置快速访问栏控制按钮的样式
+     lv_obj_set_style_radius(explorer->quick_access_ctrl_btn, 0, 0);
+     lv_obj_set_style_pad_all(explorer->quick_access_ctrl_btn, 5, 0);
+-    lv_obj_add_event_cb(explorer->quick_access_ctrl_btn, quick_access_ctrl_btn_event_handler, LV_EVENT_VALUE_CHANGED,
+-                        explorer);
++    lv_obj_add_event_cb(explorer->quick_access_ctrl_btn, quick_access_ctrl_btn_event_handler, LV_EVENT_VALUE_CHANGED, explorer);
+ #endif
+ 
+     lv_obj_add_style(explorer->cont, &cont_style, 0);
+@@ -462,65 +498,74 @@ static void init_style(lv_obj_t * obj)
+         }
+     }
+ #endif
++
+ }
+ 
+ #if LV_100ASK_FILE_EXPLORER_QUICK_ACCESS
+ static void quick_access_event_handler(lv_event_t * e)
+ {
+     lv_event_code_t code = lv_event_get_code(e);
+-    lv_obj_t * btn       = lv_event_get_target(e);
+-    lv_obj_t * obj       = lv_event_get_user_data(e);
++    lv_obj_t * btn = lv_event_get_target(e);
++    lv_obj_t * obj = lv_event_get_user_data(e);
+ 
+     lv_100ask_file_explorer_t * explorer = (lv_100ask_file_explorer_t *)obj;
+ 
+     if(code == LV_EVENT_CLICKED) {
+-        char ** path      = NULL;
+-        lv_obj_t * label  = lv_obj_get_child(btn, -1);
++        char ** path = NULL;
++        lv_obj_t * label = lv_obj_get_child(btn, -1);
+         char * label_text = lv_label_get_text(label);
+ 
+         if((strcmp(label_text, LV_SYMBOL_HOME " HOME") == 0)) {
+             path = &(explorer->home_dir);
+-        } else if((strcmp(label_text, LV_SYMBOL_VIDEO " Video") == 0)) {
++        }
++        else if((strcmp(label_text, LV_SYMBOL_VIDEO " Video") == 0)) {
+             path = &(explorer->video_dir);
+-        } else if((strcmp(label_text, LV_SYMBOL_IMAGE " Pictures") == 0)) {
++        }
++        else if((strcmp(label_text, LV_SYMBOL_IMAGE " Pictures") == 0)) {
+             path = &(explorer->pictures_dir);
+-        } else if((strcmp(label_text, LV_SYMBOL_AUDIO " Music") == 0)) {
++        }
++        else if((strcmp(label_text, LV_SYMBOL_AUDIO " Music") == 0)) {
+             path = &(explorer->music_dir);
+-        } else if((strcmp(label_text, LV_SYMBOL_FILE "  Documents") == 0)) {
++        }
++        else if((strcmp(label_text, LV_SYMBOL_FILE "  Documents") == 0)) {
+             path = &(explorer->docs_dir);
+-        } else if((strcmp(label_text, LV_SYMBOL_DRIVE " File System") == 0)) {
++        }
++        else if((strcmp(label_text, LV_SYMBOL_DRIVE " File System") == 0)) {
+ #if LV_USE_FS_WIN32
+             path = NULL;
+ #else
+             char * tmp_str = "/";
+-            path           = &tmp_str;
++            path = &tmp_str;
+ #endif
+-        } else if((strcmp(label_text, LV_SYMBOL_DRIVE " Mnt") == 0)) {
++        }
++        else if((strcmp(label_text, LV_SYMBOL_DRIVE " Mnt") == 0)) {
+ #if LV_USE_FS_WIN32
+             path = NULL;
+ #else
+             char * tmp_str = "/mnt";
+-            path           = &tmp_str;
++            path = &tmp_str;
+ #endif
+         }
+ 
+-        if(path != NULL) show_dir(obj, *path);
++        if (path != NULL)
++            show_dir(obj, *path);
+     }
+ }
+ 
+ static void quick_access_ctrl_btn_event_handler(lv_event_t * e)
+ {
+     lv_event_code_t code = lv_event_get_code(e);
+-    lv_obj_t * btn       = lv_event_get_target(e);
+-    lv_obj_t * obj       = lv_event_get_user_data(e);
++    lv_obj_t * btn = lv_event_get_target(e);
++    lv_obj_t * obj = lv_event_get_user_data(e);
+ 
+     lv_100ask_file_explorer_t * explorer = (lv_100ask_file_explorer_t *)obj;
+ 
+     if(code == LV_EVENT_VALUE_CHANGED) {
+-        if(lv_obj_has_state(btn, LV_STATE_CHECKED)) {
++        if (lv_obj_has_state(btn, LV_STATE_CHECKED)) {
+             lv_obj_add_flag(explorer->quick_access_area, LV_OBJ_FLAG_HIDDEN);
+             lv_obj_set_size(explorer->browser_area, LV_PCT(100), LV_PCT(100));
+-        } else {
++        }
++        else {
+             lv_obj_clear_flag(explorer->quick_access_area, LV_OBJ_FLAG_HIDDEN);
+             lv_obj_set_size(explorer->browser_area, LV_PCT(FILE_EXPLORER_BROWER_AREA_WIDTH), LV_PCT(100));
+         }
+@@ -531,13 +576,18 @@ static void quick_access_ctrl_btn_event_handler(lv_event_t * e)
+ static void brower_file_event_handler(lv_event_t * e)
+ {
+     lv_event_code_t code = lv_event_get_code(e);
+-    lv_obj_t * obj       = lv_event_get_user_data(e);
++    lv_obj_t * obj = lv_event_get_user_data(e);
++    lv_obj_t * btn = lv_event_get_target(e);
+ 
+     lv_100ask_file_explorer_t * explorer = (lv_100ask_file_explorer_t *)obj;
+ 
+     if(code == LV_EVENT_VALUE_CHANGED) {
+-        // struct stat stat_buf;
+-        char file_name[LV_100ASK_FILE_EXPLORER_PATH_MAX_LEN];
++        if(explorer->long_pressed) {
++            explorer->long_pressed = false;
++            return;
++        }
++        //struct stat stat_buf;
++        char * file_name[LV_100ASK_FILE_EXPLORER_PATH_MAX_LEN];
+         char * str_fn = NULL;
+         uint16_t row;
+         uint16_t col;
+@@ -546,15 +596,18 @@ static void brower_file_event_handler(lv_event_t * e)
+         lv_table_get_selected_cell(explorer->file_list, &row, &col);
+         str_fn = lv_table_get_cell_value(explorer->file_list, row, col);
+ 
+-        str_fn = str_fn + 5;
+-        if((strcmp(str_fn, ".") == 0)) return;
+-
+-        if((strcmp(str_fn, "..") == 0) && (strlen(explorer->cur_path) > 3)) {
++        str_fn = str_fn+5;
++        if((strcmp(str_fn, ".") == 0))  return;
++        
++        if((strcmp(str_fn, "..") == 0) && (strlen(explorer->cur_path) > 3))
++        {
+             strip_ext(explorer->cur_path);
+             strip_ext(explorer->cur_path); // 去掉最后的 '/' 路径
+             lv_snprintf(file_name, sizeof(file_name), "%s", explorer->cur_path);
+-        } else {
+-            if(strcmp(str_fn, "..") != 0) {
++        }
++        else
++        {
++            if(strcmp(str_fn, "..") != 0){
+                 lv_snprintf(file_name, sizeof(file_name), "%s%s", explorer->cur_path, str_fn);
+             }
+         }
+@@ -563,17 +616,54 @@ static void brower_file_event_handler(lv_event_t * e)
+         if(lv_fs_dir_open(&dir, file_name) == LV_FS_RES_OK) {
+             lv_fs_dir_close(&dir);
+             show_dir(obj, file_name);
+-        } else {
++            lv_event_send(obj, LV_EVENT_VALUE_CHANGED, e->user_data);
++        }
++        else {
+             if(strcmp(str_fn, "..") != 0) {
+                 explorer->sel_fp = str_fn;
+-                lv_event_send(obj, LV_EVENT_VALUE_CHANGED, NULL);
++                lv_event_send(obj, LV_EVENT_CLICKED, e->user_data);
+             }
+         }
+-    } else if(code == LV_EVENT_SIZE_CHANGED) {
++    }
++    else if(code == LV_EVENT_SIZE_CHANGED) {
+         lv_table_set_col_width(explorer->file_list, 0, lv_obj_get_width(explorer->file_list));
+     }
++    else if(code == LV_EVENT_LONG_PRESSED) {
++        explorer->long_pressed = true;
++        //struct stat stat_buf;
++        char * file_name[LV_100ASK_FILE_EXPLORER_PATH_MAX_LEN];
++        char * str_fn = NULL;
++        uint16_t row;
++        uint16_t col;
++
++        memset(file_name, 0, sizeof(file_name));
++        lv_table_get_selected_cell(explorer->file_list, &row, &col);
++        str_fn = lv_table_get_cell_value(explorer->file_list, row, col);
++
++        str_fn = str_fn+5;
++        if((strcmp(str_fn, ".") == 0))  return;
++        
++        if((strcmp(str_fn, "..") == 0) && (strlen(explorer->cur_path) > 3))
++        {
++            strip_ext(explorer->cur_path);
++            strip_ext(explorer->cur_path); // 去掉最后的 '/' 路径
++            lv_snprintf(file_name, sizeof(file_name), "%s", explorer->cur_path);
++        }
++        else
++        {
++            if(strcmp(str_fn, "..") != 0){
++                lv_snprintf(file_name, sizeof(file_name), "%s%s", explorer->cur_path, str_fn);
++            }
++        }
++
++        if(strcmp(str_fn, "..") != 0) {
++            explorer->sel_fp = str_fn;
++            lv_event_send(obj, LV_EVENT_LONG_PRESSED, e->user_data);
++        }
++    }
+ }
+ 
++
+ static void show_dir(lv_obj_t * obj, char * path)
+ {
+     lv_100ask_file_explorer_t * explorer = (lv_100ask_file_explorer_t *)obj;
+@@ -589,27 +679,28 @@ static void show_dir(lv_obj_t * obj, char * path)
+         return;
+     }
+ 
+-    // lv_table_set_cell_value_fmt(explorer->file_list, index++, 0, LV_SYMBOL_DIRECTORY "  %s", ".");
++    //lv_table_set_cell_value_fmt(explorer->file_list, index++, 0, LV_SYMBOL_DIRECTORY "  %s", ".");
+     lv_table_set_cell_value_fmt(explorer->file_list, index++, 0, LV_SYMBOL_DIRECTORY "  %s", "..");
+     lv_table_set_cell_value(explorer->file_list, 0, 1, "0");
+-    // lv_table_set_cell_value(explorer->file_list, 1, 1, "0");
++    //lv_table_set_cell_value(explorer->file_list, 1, 1, "0");
+ 
+     while(1) {
+         res = lv_fs_dir_read(&dir, fn);
+         if(res != LV_FS_RES_OK) {
+-            LV_LOG_USER("Driver, file or directory is not exists %d!", res);
++            LV_LOG_USER("Driver, file or directory does not exist: %d", res);
+             break;
+         }
+ 
+         /*fn is empty, if not more files to read*/
+         if(strlen(fn) == 0) {
+-            LV_LOG_USER("No more files to read!");
++            //LV_LOG_USER("No more files to read!");
+             break;
+         }
+ 
+         // 识别并展示文件
+-        if(is_end_with(fn, ".png", false) || is_end_with(fn, ".jpg", false) || is_end_with(fn, ".jpeg", false) ||
+-           is_end_with(fn, ".bmp", false) || is_end_with(fn, ".gif", false)) {
++        if(is_end_with(fn, ".png", false) || is_end_with(fn, ".jpg", false) ||
++           is_end_with(fn, ".jpeg", false) || is_end_with(fn, ".bmp", false) ||
++           is_end_with(fn, ".gif", false)) {
+             lv_table_set_cell_value_fmt(explorer->file_list, index, 0, LV_SYMBOL_IMAGE "  %s", fn);
+             lv_table_set_cell_value(explorer->file_list, index, 1, "1");
+         } else if(is_end_with(fn, ".mp3", false) || is_end_with(fn, ".wav", false) ||
+@@ -618,7 +709,7 @@ static void show_dir(lv_obj_t * obj, char * path)
+                   is_end_with(fn, ".mid", false) || is_end_with(fn, ".midi", false)) {
+             lv_table_set_cell_value_fmt(explorer->file_list, index, 0, LV_SYMBOL_AUDIO "  %s", fn);
+             lv_table_set_cell_value(explorer->file_list, index, 1, "2");
+-        } else if(is_end_with(fn, ".mp4", false)) {
++        } else if(is_end_with(fn, ".mp4", false) || is_end_with(fn, ".avi", false)) {
+             lv_table_set_cell_value_fmt(explorer->file_list, index, 0, LV_SYMBOL_VIDEO "  %s", fn);
+             lv_table_set_cell_value(explorer->file_list, index, 1, "3");
+         } else if(is_end_with(fn, ".txt", false) || is_end_with(fn, ".log", false) ||
+@@ -628,19 +719,19 @@ static void show_dir(lv_obj_t * obj, char * path)
+             lv_table_set_cell_value(explorer->file_list, index, 1, "4");
+         } else if(is_end_with(fn, ".", false) || is_end_with(fn, "..", false)) {
+             /*is dir*/
+-            // lv_table_set_cell_value_fmt(explorer->file_list, index, 0, LV_SYMBOL_DIRECTORY "  %s", fn);
++            //lv_table_set_cell_value_fmt(explorer->file_list, index, 0, LV_SYMBOL_DIRECTORY "  %s", fn);
+             continue;
+         } else if(fn[0] == '/') { /*is dir*/
+-            lv_table_set_cell_value_fmt(explorer->file_list, index, 0, LV_SYMBOL_DIRECTORY "  %s", fn + 1);
++            lv_table_set_cell_value_fmt(explorer->file_list, index, 0, LV_SYMBOL_DIRECTORY "  %s", fn+1);
+             lv_table_set_cell_value(explorer->file_list, index, 1, "0");
+         } else {
+             lv_table_set_cell_value_fmt(explorer->file_list, index, 0, LV_SYMBOL_FILE "  %s", fn);
+-            lv_table_set_cell_value(explorer->file_list, index, 1, "5");
++            lv_table_set_cell_value(explorer->file_list, index, 1, "4");
+         }
+ 
+         index++;
+ 
+-        // LV_LOG_USER("%s", fn);
++        //LV_LOG_USER("%s", fn);
+     }
+ 
+     lv_fs_dir_close(&dir);
+@@ -656,26 +747,31 @@ static void show_dir(lv_obj_t * obj, char * path)
+     size_t cur_path_len = strlen(explorer->cur_path);
+     if((*((explorer->cur_path) + cur_path_len) != '/') && (cur_path_len < LV_100ASK_FILE_EXPLORER_PATH_MAX_LEN)) {
+         *((explorer->cur_path) + cur_path_len) = '/';
+-    }
++    }  
+ }
+ 
++
+ // 去掉最后的后缀名
+-static void strip_ext(char * dir)
++static void strip_ext(char *dir)
+ {
+-    char * end = dir + strlen(dir);
++    char *end = dir + strlen(dir);
+ 
+-    while(end >= dir && *end != '/') {
++    while (end >= dir && *end != '/') {
+         --end;
+     }
+ 
+-    if(end > dir) {
++    if (end > dir) {
+         *end = '\0';
+-    } else if(end == dir) {
+-        *(end + 1) = '\0';
+     }
++    else if (end == dir) {
++        *(end+1) = '\0';
++    }
++
+ }
+ 
+-static void exch_table_item(lv_obj_t * tb, int16_t i, int16_t j)
++
++
++static void exch_table_item(lv_obj_t * tb, int16_t i,int16_t j )
+ {
+     const char * tmp;
+     tmp = lv_table_get_cell_value(tb, i, 0);
+@@ -687,44 +783,51 @@ static void exch_table_item(lv_obj_t * tb, int16_t i, int16_t j)
+     lv_table_set_cell_value(tb, 0, 2, tmp);
+     lv_table_set_cell_value(tb, i, 1, lv_table_get_cell_value(tb, j, 1));
+     lv_table_set_cell_value(tb, j, 1, lv_table_get_cell_value(tb, 0, 2));
++    
+ }
+ 
++
+ // Quick sort 3 way
+-static void sort_table_items(lv_obj_t * tb, int16_t lo, int16_t hi)
++static void sort_table_items(lv_obj_t * tb, int16_t lo, int16_t hi )
+ {
+-    if(lo >= hi) return; // 单个元素或者没有元素的情况
++    if( lo >= hi ) return;  //单个元素或者没有元素的情况
+ 
+-    int16_t lt     = lo;
+-    int16_t i      = lo + 1; // 第一个元素是切分元素，所以指针i可以从lo+1开始
+-    int16_t gt     = hi;
++    int16_t lt = lo;
++    int16_t i = lo + 1;  //第一个元素是切分元素，所以指针i可以从lo+1开始
++    int16_t gt = hi;
+     const char * v = lv_table_get_cell_value(tb, lo, 1);
+-    while(i <= gt) {
+-        if(strcmp(lv_table_get_cell_value(tb, i, 1), v) < 0) // 小于切分元素的放在lt左边，因此指针lt和指针i整体右移
++    while( i <= gt )
++    {
++        if(strcmp(lv_table_get_cell_value(tb, i, 1), v) < 0)  //小于切分元素的放在lt左边，因此指针lt和指针i整体右移
+             exch_table_item(tb, lt++, i++);
+-        else if(strcmp(lv_table_get_cell_value(tb, i, 1), v) > 0) // 大于切分元素的放在gt右边，因此指针gt需要左移
++        else if(strcmp(lv_table_get_cell_value(tb, i, 1), v) > 0)  //大于切分元素的放在gt右边，因此指针gt需要左移
+             exch_table_item(tb, i, gt--);
+         else
+             i++;
+     }
+-    // lt-gt的元素已经排定，只需对it左边和gt右边的元素进行递归求解
+-    sort_table_items(tb, lo, lt - 1);
+-    sort_table_items(tb, gt + 1, hi);
++    //lt-gt的元素已经排定，只需对it左边和gt右边的元素进行递归求解
++    sort_table_items(tb, lo, lt-1);
++    sort_table_items(tb, gt+1, hi);
+ }
+ 
+ static bool is_begin_with(const char * str1, const char * str2, bool case_sensitivity)
+ {
+-    if(str1 == NULL || str2 == NULL) return false;
++    if(str1 == NULL || str2 == NULL)
++        return false;
+ 
+     uint16_t len1 = strlen(str1);
+     uint16_t len2 = strlen(str2);
+-    if((len1 < len2) || (len1 == 0 || len2 == 0)) return false;
++    if((len1 < len2) || (len1 == 0 || len2 == 0))
++        return false;
+ 
+     uint16_t i = 0;
+-    char * p   = str2;
+-    while(*p != '\0') {
++    char * p = str2;
++    while(*p != '\0')
++    {
+         if(case_sensitivity) {
+             if(*p != str1[i]) return false;
+-        } else {
++        }
++        else {
+             if(to_upper_case(*p) != to_upper_case(str1[i])) return false;
+         }
+ 
+@@ -735,21 +838,28 @@ static bool is_begin_with(const char * str1, const char * str2, bool case_sensit
+     return true;
+ }
+ 
++
++
+ static bool is_end_with(const char * str1, const char * str2, bool case_sensitivity)
+ {
+-    if(str1 == NULL || str2 == NULL) return false;
+-
++    if(str1 == NULL || str2 == NULL)
++        return false;
++    
+     uint16_t len1 = strlen(str1);
+     uint16_t len2 = strlen(str2);
+-    if((len1 < len2) || (len1 == 0 || len2 == 0)) return false;
+-
+-    while(len2 >= 1) {
+-        if(case_sensitivity) {
++    if((len1 < len2) || (len1 == 0 || len2 == 0))
++        return false;
++    
++    while(len2 >= 1)
++    {
++        if(case_sensitivity){
+             if(str2[len2 - 1] != str1[len1 - 1]) return false;
+-        } else {
++        }
++        else {
+             if(to_upper_case(str2[len2 - 1]) != to_upper_case(str1[len1 - 1])) return false;
+         }
+ 
++
+         len2--;
+         len1--;
+     }
+@@ -774,4 +884,4 @@ static bool is_upper_letter(char c)
+     return 97 <= c && c <= 122;
+ }
+ 
+-#endif /*LV_USE_100ASK_FILE_EXPLORER*/
++#endif  /*LV_USE_100ASK_FILE_EXPLORER*/
+diff --git a/lv_lib_100ask/src/lv_100ask_file_explorer/lv_100ask_file_explorer.h b/lv_lib_100ask/src/lv_100ask_file_explorer/lv_100ask_file_explorer.h
+index 836f0f7..d9b249d 100644
+--- a/lv_lib_100ask/src/lv_100ask_file_explorer/lv_100ask_file_explorer.h
++++ b/lv_lib_100ask/src/lv_100ask_file_explorer/lv_100ask_file_explorer.h
+@@ -63,6 +63,7 @@ typedef struct {
+ #endif
+     char * sel_fp;
+     char   cur_path[LV_100ASK_FILE_EXPLORER_PATH_MAX_LEN];
++    bool long_pressed;
+ } lv_100ask_file_explorer_t;
+ 
+ /***********************
+@@ -176,6 +177,12 @@ lv_obj_t * lv_100ask_file_explorer_get_file_list(lv_obj_t * obj);
+  */
+ void lv_100ask_file_explorer_open_dir(lv_obj_t * obj, char * dir);
+ 
++/**
++ * Added: Refresh current directory
++ * @param obj   pointer to a file explorer object
++ */
++void lv_100ask_file_explorer_refresh(lv_obj_t * obj);
++
+ /**********************
+  *      MACROS
+  **********************/
+diff --git a/main.c b/main.c
+index ffb336a..17428f6 100755
+--- a/main.c
++++ b/main.c
+@@ -16,7 +16,7 @@
+ #include "platform/battery_manager.h"
+ 
+ // 请教DeepSeek实现了简易页面管理器，100ask那个实际上不太好用……
+-#include "pages/page_manager.h"
++#include "platform/page_manager.h"
+ #include "pages/page_home.h"
+ 
+ /*
+diff --git a/pages/page_2048.h b/pages/page_2048.h
+index 5ac3460..735ac12 100644
+--- a/pages/page_2048.h
++++ b/pages/page_2048.h
+@@ -11,7 +11,7 @@ extern "C" {
+ 
+ #include "main.h"
+ #include "../lv_lib_100ask/lv_lib_100ask.h"
+-#include "page_manager.h"
++#include "platform/page_manager.h"
+ #include "../cJSON/cJSON.h"
+ #include <sys/stat.h>
+ #include <errno.h>
+diff --git a/pages/page_apple.h b/pages/page_apple.h
+index f986f45..491e628 100644
+--- a/pages/page_apple.h
++++ b/pages/page_apple.h
+@@ -15,7 +15,7 @@ extern "C" {
+ #include <stdio.h>
+ #include <stdbool.h>
+ 
+-#include "page_manager.h"
++#include "platform/page_manager.h"
+ #include "platform/ff_player.h"
+ #include "platform/audio_ctrl.h"
+ 
+diff --git a/pages/page_audio.h b/pages/page_audio.h
+index 342c053..51ebf90 100644
+--- a/pages/page_audio.h
++++ b/pages/page_audio.h
+@@ -10,7 +10,7 @@ extern "C" {
+  *********************/
+ #include "../lvgl/lvgl.h"
+ #include "../lv_lib_100ask/lv_lib_100ask.h"
+-#include "page_manager.h"
++#include "platform/page_manager.h"
+ #include "platform/ff_player.h"
+ #include "platform/audio_ctrl.h"
+ #include "views/lv_text_clock.h"
+diff --git a/pages/page_bird.h b/pages/page_bird.h
+index 41ba64a..7c8a062 100644
+--- a/pages/page_bird.h
++++ b/pages/page_bird.h
+@@ -15,7 +15,7 @@ extern "C" {
+ #include <stdlib.h>
+ #include <stdbool.h>
+ #include <time.h>
+-#include "page_manager.h"
++#include "platform/page_manager.h"
+ 
+ /*********************
+  *      DEFINES
+diff --git a/pages/page_calculator.h b/pages/page_calculator.h
+index 7b7fecb..15fe0bf 100644
+--- a/pages/page_calculator.h
++++ b/pages/page_calculator.h
+@@ -10,7 +10,7 @@ extern "C" {
+  *********************/
+ #include "../lvgl/lvgl.h"
+ #include "../lv_lib_100ask/lv_lib_100ask.h"
+-#include "page_manager.h"
++#include "platform/page_manager.h"
+ 
+ /*********************
+  *      DEFINES
+diff --git a/pages/page_demo.h b/pages/page_demo.h
+index 437c99a..473fac8 100644
+--- a/pages/page_demo.h
++++ b/pages/page_demo.h
+@@ -12,7 +12,7 @@ extern "C" {
+ #include "../lv_lib_100ask/lv_lib_100ask.h"
+ #include <stdlib.h>
+ #include "main.h"
+-#include "page_manager.h"
++#include "platform/page_manager.h"
+ 
+ /*********************
+  *      DEFINES
+diff --git a/pages/page_file_manager.c b/pages/page_file_manager.c
+index dccb59d..2ef423f 100644
+--- a/pages/page_file_manager.c
++++ b/pages/page_file_manager.c
+@@ -1,23 +1,72 @@
+ #include "page_file_manager.h"
+ 
++#include <stdio.h>
++#include <sys/stat.h>
++#include <stdbool.h>
+ #include "page_apple.h"
+ #include "page_audio.h"
+ #include "page_midi.h"
+ #include "page_image.h"
+ #include "page_txt.h"
++#include "platform/str_utils.h"
++#include "views/custom_msgbox.h"
++
++typedef enum { FILE_OPERATION_NONE = 0, FILE_OPERATION_CUT, FILE_OPERATION_COPY } file_operation_t;
+ 
+ typedef struct
+ {
+     BasePage base;
+     lv_obj_t * file_explorer;
++    lv_obj_t * container_act;
++    lv_obj_t * label_file_name;
++    char file_current[LV_100ASK_FILE_EXPLORER_PATH_MAX_LEN];
++    char file_clipboard[LV_100ASK_FILE_EXPLORER_PATH_MAX_LEN];
++    file_operation_t file_operation;
+ } FileManagerPage;
+ 
++static const char * btn_txts[] = {"YES", "NO", NULL};
++
+ static lv_obj_t * page_file_manager_obj(FileManagerPage * page);
+ static void explorer_event_handler(lv_event_t * e);
+ static void back_click(lv_event_t * e);
+-static void back_click(lv_event_t * e);
++static void container_act_click(lv_event_t * e);
++static void act_cut_click(lv_event_t * e);
++static void act_copy_click(lv_event_t * e);
++static void act_paste_click(lv_event_t * e);
++static void act_delete_click(lv_event_t * e);
++static void act_msgbox_delete(lv_event_t * e);
++static void act_msgbox_paste(lv_event_t * e);
+ static bool page_file_manager_on_key(void * p, key_code_t key_code, key_action_t key_action);
+ 
++static bool is_file_safe(char * file_name)
++{
++    return (str_begin_with(file_name, "/mnt/UDISK/", true) || str_begin_with(file_name, "/mnt/app/dendro/", true)
++            || str_begin_with(file_name, "/mnt/sdcard/", true)) &&
++            (!str_begin_with(file_name, "/mnt/UDISK/lvgl", true) && !str_begin_with(file_name, "/mnt/UDISK/lib", true));
++}
++
++static bool is_directory_safe(char * file_name)
++{
++    return (str_begin_with(file_name, "/mnt/UDISK", true) || str_begin_with(file_name, "/mnt/app/dendro", true)
++            || str_begin_with(file_name, "/mnt/sdcard", true)) &&
++            (!str_begin_with(file_name, "/mnt/UDISK/lvgl", true) && !str_begin_with(file_name, "/mnt/UDISK/lib", true));
++}
++
++static bool is_directory(char * file_name)
++{
++    struct stat s_buf;
++
++    if(stat(file_name, &s_buf) == 0) {
++        if(S_ISDIR(s_buf.st_mode)) {
++            return true;
++        }
++    } else {
++        perror("is_directory");
++        return false;
++    }
++    return false;
++}
++
+ BasePage * page_file_manager_create(void)
+ {
+     FileManagerPage * page = malloc(sizeof(FileManagerPage));
+@@ -36,7 +85,8 @@ lv_obj_t * page_file_manager_obj(FileManagerPage * page)
+     lv_obj_set_size(screen, lv_pct(100), lv_pct(100));
+ 
+     lv_obj_t * file_explorer = lv_100ask_file_explorer_create(screen);
+-    lv_obj_add_event_cb(file_explorer, explorer_event_handler, LV_EVENT_VALUE_CHANGED, NULL);
++    lv_obj_add_event_cb(file_explorer, explorer_event_handler, 
++							LV_EVENT_ALL, page);
+     lv_100ask_file_explorer_open_dir(file_explorer, "//mnt");
+     page->file_explorer = file_explorer;
+ 
+@@ -46,7 +96,58 @@ lv_obj_t * page_file_manager_obj(FileManagerPage * page)
+     lv_obj_t * btn_back_label = lv_label_create(btn_back);
+     lv_label_set_text(btn_back_label, CUSTOM_SYMBOL_BACK "");
+     lv_obj_center(btn_back_label);
+-    lv_obj_add_event_cb(btn_back, back_click, LV_EVENT_CLICKED, NULL);
++    lv_obj_add_event_cb(btn_back, back_click, LV_EVENT_CLICKED, page);
++
++    lv_obj_t * container_act = lv_obj_create(screen);
++    lv_obj_remove_style_all(container_act);
++    lv_obj_clear_flag(container_act, LV_OBJ_FLAG_SCROLLABLE);
++    lv_obj_align(container_act, LV_ALIGN_BOTTOM_MID, 0, 0);
++    lv_obj_set_size(container_act, lv_pct(100), lv_pct(88));
++    lv_obj_set_style_bg_opa(container_act, LV_OPA_60, LV_STATE_DEFAULT);
++    lv_obj_set_style_bg_color(container_act, lv_color_black(), LV_STATE_DEFAULT);
++    lv_obj_add_flag(container_act, LV_OBJ_FLAG_HIDDEN);
++    lv_obj_add_event_cb(container_act, container_act_click, LV_EVENT_CLICKED, page);
++    page->container_act = container_act;
++
++    lv_obj_t * list_act = lv_obj_create(container_act);
++    lv_obj_align(list_act, LV_ALIGN_TOP_RIGHT, 0, 0);
++    lv_obj_set_size(list_act, lv_pct(75), lv_pct(100));
++    lv_obj_set_flex_flow(list_act, LV_FLEX_FLOW_COLUMN);
++    lv_obj_set_scroll_dir(list_act, LV_DIR_VER);
++
++    lv_obj_t * label_file_name = lv_label_create(list_act);
++    lv_label_set_long_mode(label_file_name, LV_LABEL_LONG_SCROLL_CIRCULAR);
++    lv_obj_set_width(label_file_name, lv_pct(100));
++    page->label_file_name = label_file_name;
++
++    lv_obj_t * btn_cut = lv_btn_create(list_act);
++    lv_obj_set_size(btn_cut, lv_pct(100), lv_pct(22));
++    lv_obj_t * btn_label_cut = lv_label_create(btn_cut);
++    lv_label_set_text(btn_label_cut, "Cut");
++    lv_obj_center(btn_label_cut);
++    lv_obj_add_event_cb(btn_cut, act_cut_click, LV_EVENT_CLICKED, page);
++
++    lv_obj_t * btn_copy = lv_btn_create(list_act);
++    lv_obj_set_size(btn_copy, lv_pct(100), lv_pct(22));
++    lv_obj_t * btn_label_copy = lv_label_create(btn_copy);
++    lv_label_set_text(btn_label_copy, "Copy");
++    lv_obj_center(btn_label_copy);
++    lv_obj_add_event_cb(btn_copy, act_copy_click, LV_EVENT_CLICKED, page);
++
++    lv_obj_t * btn_paste = lv_btn_create(list_act);
++    lv_obj_set_size(btn_paste, lv_pct(100), lv_pct(22));
++    lv_obj_t * btn_label_paste = lv_label_create(btn_paste);
++    lv_label_set_text(btn_label_paste, "Paste");
++    lv_obj_center(btn_label_paste);
++    lv_obj_add_event_cb(btn_paste, act_paste_click, LV_EVENT_CLICKED, page);
++
++    lv_obj_t * btn_delete = lv_btn_create(list_act);
++    lv_obj_set_size(btn_delete, lv_pct(100), lv_pct(22));
++    lv_obj_set_style_bg_color(btn_delete, lv_palette_main(LV_PALETTE_RED), LV_STATE_DEFAULT);
++    lv_obj_t * btn_label_delete = lv_label_create(btn_delete);
++    lv_label_set_text(btn_label_delete, "Delete");
++    lv_obj_center(btn_label_delete);
++    lv_obj_add_event_cb(btn_delete, act_delete_click, LV_EVENT_CLICKED, page);
+ 
+     return screen;
+ }
+@@ -55,15 +156,17 @@ static void explorer_event_handler(lv_event_t * e)
+ {
+     lv_event_code_t code = lv_event_get_code(e);
+     lv_obj_t * obj       = lv_event_get_target(e);
++    FileManagerPage * page = (FileManagerPage *)e->user_data;
+ 
+-    if(code == LV_EVENT_VALUE_CHANGED) {
+-        char * cur_path = lv_100ask_file_explorer_get_cur_path(obj);
+-        char * sel_fn   = lv_100ask_file_explorer_get_sel_fn(obj);
+-        char file_name[LV_100ASK_FILE_EXPLORER_PATH_MAX_LEN];
+-
+-        lv_snprintf(file_name, sizeof(file_name), "%s%s", cur_path + 1, sel_fn);
++    // file_explorer获取的路径形如 "//mnt/UDISK/lvgl/"
++    // 将其指针向前移动一位，路径变为 "/mnt/UDISK/lvgl/"
++    char * cur_path = lv_100ask_file_explorer_get_cur_path(obj) + 1;
++    char * sel_fn   = lv_100ask_file_explorer_get_sel_fn(obj);
++    char * file_name = &page->file_current[0];
++    lv_snprintf(file_name, sizeof(page->file_current), "%s%s", cur_path, sel_fn);
+ 
+-        printf("%s\n", file_name);
++    if(code == LV_EVENT_CLICKED) {
++        printf("[file_manager] clicked %s\n", file_name);
+ 
+         if(str_end_with(file_name, ".png", false) || str_end_with(file_name, ".jpg", false) ||
+             str_end_with(file_name, ".jpeg", false) || str_end_with(file_name, ".bmp", false) ||
+@@ -79,7 +182,7 @@ static void explorer_event_handler(lv_event_t * e)
+                 page_open(page_audio_create(file_name));
+             }
+             
+-        if(str_end_with(file_name, ".mp4", false)) {
++        if(str_end_with(file_name, ".mp4", false) || str_end_with(file_name, ".avi", false)) {
+             page_open(page_video_create(file_name));
+         }
+ 
+@@ -87,17 +190,176 @@ static void explorer_event_handler(lv_event_t * e)
+             page_open(page_midi_create(file_name));
+         }
+ 
+-        if(str_end_with(file_name, ".txt", false) || str_end_with(file_name, ".json", false) ||
+-           str_end_with(file_name, ".conf", false) || str_end_with(file_name, ".log", false) ||
+-           str_end_with(file_name, ".md", false) || str_end_with(file_name, ".sh", false)) {
++        if(str_end_with(file_name, ".txt", false) || str_end_with(file_name, ".json", false) || 
++            str_end_with(file_name, ".conf", false) || str_end_with(file_name, ".log", false) ||
++            str_end_with(file_name, ".cfg", false)) {
+             page_open(page_txt_create(file_name));
++        }   
++    }
++
++    if(code == LV_EVENT_LONG_PRESSED) {
++        printf("[file_manager] long-pressed %s\n", file_name);
++        lv_label_set_text(page->label_file_name, sel_fn);
++        lv_obj_clear_flag(page->container_act, LV_OBJ_FLAG_HIDDEN);
++    }
++}
++
++static void act_cut_click(lv_event_t * e)
++{
++    FileManagerPage * page = (FileManagerPage *)e->user_data;
++
++    if(!is_directory_safe(page->file_current)) {
++        custom_toast_create("Operation Not Allowed!");
++        return;
++    }
++
++    strcpy(page->file_clipboard, page->file_current);
++    page->file_operation = FILE_OPERATION_CUT;
++    lv_obj_add_flag(page->container_act, LV_OBJ_FLAG_HIDDEN);
++    custom_toast_create("CUT");
++}
++
++static void act_copy_click(lv_event_t * e)
++{
++    FileManagerPage * page = (FileManagerPage *)e->user_data;
++    strcpy(page->file_clipboard, page->file_current);
++    page->file_operation = FILE_OPERATION_COPY;
++    lv_obj_add_flag(page->container_act, LV_OBJ_FLAG_HIDDEN);
++    custom_toast_create("COPY");
++}
++
++static void act_paste_click(lv_event_t * e)
++{
++    FileManagerPage * page = (FileManagerPage *)e->user_data;
++
++    if(!is_directory(page->file_current)) {
++        custom_toast_create("Please Select a Directory to Paste.");
++        return;
++    }
++
++    if(!is_directory_safe(page->file_current)) {
++        custom_toast_create("Operation Not Allowed!");
++        return;
++    }
++
++    lv_obj_t * mbox = NULL;
++    switch (page->file_operation)
++    {
++    case FILE_OPERATION_CUT:
++        mbox = custom_msgbox_create("Move File:", 
++                page->file_clipboard,
++                btn_txts, false);
++        break;
++        
++    case FILE_OPERATION_COPY:
++        mbox = custom_msgbox_create("Copy File:", 
++                page->file_clipboard,
++                btn_txts, false);
++        break;
++    
++    default:
++        custom_toast_create("Clipboard Is Empty.");
++        break;
++    }
++
++    if (mbox) lv_obj_add_event_cb(mbox, act_msgbox_paste, LV_EVENT_VALUE_CHANGED, page);
++}
++
++static void act_delete_click(lv_event_t * e)
++{
++    FileManagerPage * page = (FileManagerPage *)e->user_data;
++    if(!is_file_safe(page->file_current)) {
++        custom_toast_create("Operation Not Allowed!");
++        return;
++    }
++    lv_obj_t * mbox = custom_msgbox_create("Delete File:", 
++                lv_100ask_file_explorer_get_sel_fn(page->file_explorer),
++                btn_txts, false);
++    lv_obj_add_event_cb(mbox, act_msgbox_delete, LV_EVENT_VALUE_CHANGED, page);
++}
++
++static void act_msgbox_delete(lv_event_t * e)
++{
++    FileManagerPage * page = (FileManagerPage *)e->user_data;
++    // 请注意：这里的消息是冒泡上来的，target获取到的是里面的btn_matrix
++    lv_obj_t * msgbox = lv_obj_get_parent(lv_event_get_target(e));
++    char * txt = lv_msgbox_get_active_btn_text(msgbox);
++
++    if(strcmp(txt, "YES") == 0) {
++        char * file_name = &page->file_current[0];
++        int cmd_length   = 10 + strlen(file_name);
++        char * cmd       = malloc(cmd_length);
++        if(cmd == NULL) { perror("malloc"); exit(EXIT_FAILURE); }
++        lv_snprintf(cmd, cmd_length, "rm -rf \"%s\"", file_name);
++
++        printf("[file_manager] %s\n", cmd);
++        custom_toast_create(cmd);
++        system(cmd);
++        free(cmd);
++
++        lv_100ask_file_explorer_refresh(page->file_explorer);
++        lv_obj_add_flag(page->container_act, LV_OBJ_FLAG_HIDDEN);
++    }
++    lv_msgbox_close_async(msgbox);
++}
++
++static void act_msgbox_paste(lv_event_t * e)
++{
++    FileManagerPage * page = (FileManagerPage *)e->user_data;
++    // 请注意：这里的消息是冒泡上来的，target获取到的是里面的btn_matrix
++    lv_obj_t * msgbox = lv_obj_get_parent(lv_event_get_target(e));
++    char * txt = lv_msgbox_get_active_btn_text(msgbox);
++
++    if (strcmp(txt, "YES") == 0) {
++        char * file_current   = &page->file_current[0];
++        char * file_clipboard = &page->file_clipboard[0];
++
++        char * cmd;
++        int cmd_length;
++
++        switch(page->file_operation) {
++            case FILE_OPERATION_CUT:
++                cmd_length = 12 + strlen(file_clipboard) + strlen(file_current);
++                cmd        = malloc(cmd_length);
++                if(cmd == NULL) { perror("malloc"); exit(EXIT_FAILURE); }
++                lv_snprintf(cmd, cmd_length, "mv -f \"%s\" \"%s\"", file_clipboard, file_current);
++                break;
++            case FILE_OPERATION_COPY:
++                cmd_length = 15 + strlen(file_clipboard) + strlen(file_current);
++                cmd        = malloc(cmd_length);
++                if(cmd == NULL) { perror("malloc"); exit(EXIT_FAILURE); }
++                lv_snprintf(cmd, cmd_length, "cp -r -f \"%s\" \"%s\"", file_clipboard, file_current);
++                break;
++            default: custom_toast_create("Unknown Operation!"); return;
+         }
++
++        printf("[file_manager] %s\n", cmd);
++        custom_toast_create(cmd);
++        system(cmd);
++        free(cmd);
++
++        lv_100ask_file_explorer_refresh(page->file_explorer);
++        lv_obj_add_flag(page->container_act, LV_OBJ_FLAG_HIDDEN);
++        lv_msgbox_close_async(msgbox);
++        page->file_operation = FILE_OPERATION_NONE;
++    }
++    else {
++        lv_msgbox_close_async(msgbox);
+     }
+ }
+ 
+ static void back_click(lv_event_t * e)
+ {
+-    page_back();
++    FileManagerPage * page = (FileManagerPage *)e->user_data;
++    if(!lv_obj_has_flag(page->container_act, LV_OBJ_FLAG_HIDDEN)) 
++        lv_obj_add_flag(page->container_act, LV_OBJ_FLAG_HIDDEN);
++    else page_back();
++}
++
++static void container_act_click(lv_event_t * e)
++{
++    FileManagerPage * page = (FileManagerPage *)e->user_data;
++    lv_obj_add_flag(page->container_act, LV_OBJ_FLAG_HIDDEN);
+ }
+ 
+ static bool page_file_manager_on_key(void * p, key_code_t key_code, key_action_t key_action)
+@@ -108,6 +370,12 @@ static bool page_file_manager_on_key(void * p, key_code_t key_code, key_action_t
+     // KEY_CODE_HOME & KEY_ACTION_UP
+ 
+     FileManagerPage * page = (FileManagerPage *)p;
++
++    if(!lv_obj_has_flag(page->container_act, LV_OBJ_FLAG_HIDDEN)) {
++        lv_obj_add_flag(page->container_act, LV_OBJ_FLAG_HIDDEN);
++        return true;
++    }
++
+     char * cur_path        = lv_100ask_file_explorer_get_cur_path(page->file_explorer);
+ 
+     //printf("%s\n", cur_path);
+diff --git a/pages/page_file_manager.h b/pages/page_file_manager.h
+index 2b31ca9..e56c4f7 100644
+--- a/pages/page_file_manager.h
++++ b/pages/page_file_manager.h
+@@ -10,7 +10,7 @@ extern "C" {
+  *********************/
+ #include "../lvgl/lvgl.h"
+ #include "../lv_lib_100ask/lv_lib_100ask.h"
+-#include "page_manager.h"
++#include "platform/page_manager.h"
+ #include "../platform/str_utils.h"
+ 
+ /*********************
+diff --git a/pages/page_ftp.h b/pages/page_ftp.h
+index 323c954..53721f0 100644
+--- a/pages/page_ftp.h
++++ b/pages/page_ftp.h
+@@ -11,7 +11,7 @@ extern "C" {
+ #include "../lvgl/lvgl.h"
+ #include "../lv_lib_100ask/lv_lib_100ask.h"
+ #include "lv_drv_conf.h"
+-#include "page_manager.h"
++#include "platform/page_manager.h"
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <stdbool.h>
+diff --git a/pages/page_home.c b/pages/page_home.c
+index c3515b3..2d215e6 100644
+--- a/pages/page_home.c
++++ b/pages/page_home.c
+@@ -109,7 +109,7 @@ static void btn_scan_click(lv_event_t * e)
+ 
+ static void btn_menu_click(lv_event_t * e)
+ {
+-    page_open(page_menu_create());
++    page_open_obj(page_menu());
+ }
+ 
+ static void timer_time_tick(lv_timer_t * e)
+@@ -137,7 +137,7 @@ static void timer_battery_tick(lv_timer_t * e)
+     HomePage * page = (HomePage *)e->user_data;
+     if(!page) return;
+ 
+-    char battery_text[32];
++    char battery_text[24];
+     uint8_t capacity        = battery_get_capacity();
+     battery_status_t status = battery_get_status();
+ 
+diff --git a/pages/page_home.h b/pages/page_home.h
+index a59ff44..877fe98 100644
+--- a/pages/page_home.h
++++ b/pages/page_home.h
+@@ -10,19 +10,12 @@ extern "C" {
+  *********************/
+ #include "../lvgl/lvgl.h"
+ #include "../lv_lib_100ask/lv_lib_100ask.h"
+-#include "page_manager.h"
++#include "platform/page_manager.h"
+ #include <sys/time.h>
+ #include <time.h>
+ #include <unistd.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+-#include "platform/battery_manager.h"
+-#include "page_file_manager.h"
+-#include "page_bird.h"
+-#include "page_calculator.h"
+-#include "page_demo.h"
+-#include "page_ftp.h"
+-#include "main.h"
+ 
+ /*********************
+  *      DEFINES
+diff --git a/pages/page_image.h b/pages/page_image.h
+index a570da4..682aba6 100644
+--- a/pages/page_image.h
++++ b/pages/page_image.h
+@@ -11,7 +11,7 @@ extern "C" {
+ #include "../lvgl/lvgl.h"
+ #include "../lv_lib_100ask/lv_lib_100ask.h"
+ #include "lv_drv_conf.h"
+-#include "page_manager.h"
++#include "platform/page_manager.h"
+ #include <math.h>
+ 
+ /*********************
+diff --git a/pages/page_led.h b/pages/page_led.h
+index a22e626..9ad73ad 100644
+--- a/pages/page_led.h
++++ b/pages/page_led.h
+@@ -1,7 +1,7 @@
+ #ifndef PAGE_LED_H
+ #define PAGE_LED_H
+ 
+-#include "page_manager.h"
++#include "platform/page_manager.h"
+ 
+ BasePage * page_led_create(void);
+ 
+diff --git a/pages/page_manager.c b/pages/page_manager.c
+deleted file mode 100644
+index 43a7dbb..0000000
+--- a/pages/page_manager.c
++++ /dev/null
+@@ -1,117 +0,0 @@
+-/**
+- * From DeepSeek
+- */
+-
+-#include "page_manager.h"
+-
+-#include "main.h"
+-
+-static PageManager page_manager;
+-
+-/**
+- * 一个创建页面的简单示例，也可以对简单页面直接使用
+- * 需要自己分配一下内存，页面管理器会在销毁页面时自动释放
+- */
+-BasePage * base_page_create(lv_obj_t * obj) 
+-{
+-    BasePage * page = malloc(sizeof(BasePage));
+-    if(!page) return NULL;
+-    memset(page, 0, sizeof(BasePage));
+-
+-    page->obj = obj;
+-    return page;
+-}
+-
+-// 初始化页面管理器
+-void page_manager_init(void)
+-{
+-    page_manager.top = -1; // 初始化为空栈
+-}
+-
+-/**
+- * 旧版本，用于兼容旧版本的页面
+- * 也可以用于极简页面
+- */
+-void page_open_obj(lv_obj_t * obj)
+-{
+-    page_open(base_page_create(obj));
+-}
+-
+-// 创建新页面并压入堆栈
+-void page_open(BasePage * new_page)
+-{
+-    if(!new_page || !new_page->obj) {
+-        LV_LOG_ERROR("[pm]new page is null!\n");
+-    }
+-
+-    if(page_manager.top >= MAX_PAGE_STACK - 1) {
+-        LV_LOG_ERROR("[pm]stack overflow!\n");
+-        return;
+-    }
+-
+-    // 隐藏当前页面（如果有）
+-    if(page_manager.top >= 0) {
+-        BasePage * current_page = page_manager.stack[page_manager.top];
+-        lv_obj_add_flag(current_page->obj, LV_OBJ_FLAG_HIDDEN);
+-
+-        // on_pause回调
+-        if(current_page->on_pause) (*current_page->on_pause)(current_page);
+-    }
+-
+-    // 压入新页面
+-    page_manager.top++;
+-    page_manager.stack[page_manager.top] = new_page;
+-
+-    // 设置新页面为当前显示
+-    lv_obj_clear_flag(new_page->obj, LV_OBJ_FLAG_HIDDEN);
+-    lv_obj_move_foreground(new_page->obj);
+-
+-    // on_create回调
+-    if(new_page->on_create) (*new_page->on_create)(new_page);
+-}
+-
+-// 返回上一页并销毁当前页
+-void page_back(void)
+-{
+-    if(page_manager.top <= 0) return;
+-
+-    // 获取、隐藏当前页面
+-    BasePage * current_page = page_manager.stack[page_manager.top];
+-    lv_obj_add_flag(current_page->obj, LV_OBJ_FLAG_HIDDEN);
+-
+-    // on_destroy回调
+-    if(current_page->on_destroy) (*current_page->on_destroy)(current_page);
+-
+-    // 显示上一页面
+-    page_manager.top--;
+-    if(page_manager.top >= 0) {
+-        BasePage * new_page = page_manager.stack[page_manager.top];
+-        lv_obj_clear_flag(new_page->obj, LV_OBJ_FLAG_HIDDEN);
+-
+-        // on_resume回调
+-        if(new_page->on_resume) (*new_page->on_resume)(new_page);
+-    }
+-
+-    // 延迟删除当前页面
+-    lv_obj_del_async(current_page->obj);
+-    free(current_page);
+-
+-    // 如果需要，可以在这里触发页面切换动画
+-}
+-
+-bool page_on_key(key_code_t key_code, key_action_t key_action)
+-{
+-    // 获取当前页面
+-    BasePage * current_page = page_manager.stack[page_manager.top];
+-    
+-    if(current_page) {
+-        bool ret;
+-        if(current_page->on_key) 
+-            ret = (*current_page->on_key)(current_page, key_code, key_action);
+-        else
+-            ret = false;
+-
+-        return ret;
+-    }
+-    return false;
+-}
+\ No newline at end of file
+diff --git a/pages/page_manager.h b/pages/page_manager.h
+deleted file mode 100644
+index 86f071b..0000000
+--- a/pages/page_manager.h
++++ /dev/null
+@@ -1,93 +0,0 @@
+-#ifndef PROJ_PAGE_MANAGER_H
+-#define PROJ_PAGE_MANAGER_H
+-
+-#ifdef __cplusplus
+-extern "C" {
+-#endif
+-
+-/*********************
+- *      INCLUDES
+- *********************/
+-#include "../lvgl/lvgl.h"
+-#include "../lv_lib_100ask/lv_lib_100ask.h"
+-#include <stdio.h>
+-#include <stdlib.h>
+-#include <unistd.h>
+-#include <stdbool.h>
+-
+-/*********************
+- *      DEFINES
+- *********************/
+-#define MAX_PAGE_STACK 32 // 最大页面堆栈深度
+-
+-typedef enum { KEY_CODE_POWER, KEY_CODE_HOME, KEY_CODE_SCANNER } key_code_t;
+-typedef enum { KEY_ACTION_DOWN, KEY_ACTION_UP } key_action_t;
+-
+-/**********************
+- *      TYPEDEFS
+- **********************/
+-
+-typedef struct
+-{
+-    lv_obj_t * obj;   // 页面对象
+-    void * user_data; // 用户数据
+-    void (*on_create)(void *);  // 创建时自动触发
+-    void (*on_resume)(void *);  // 切换到前台时自动触发
+-    void (*on_pause)(void *);   // 切换到后台时自动触发
+-    void (*on_destroy)(void *); // 销毁时自动触发
+-    bool (*on_key)(void *, key_code_t, key_action_t); //接收到按键事件时自动触发
+-
+-} BasePage;
+-
+-typedef struct
+-{
+-    BasePage * stack[MAX_PAGE_STACK]; // 页面堆栈
+-    int top;                        // 栈顶指针
+-} PageManager;
+-
+-
+-/**********************
+- * GLOBAL PROTOTYPES
+- **********************/
+-
+-/**
+- * 创建一个基础页面
+- */
+-BasePage * base_page_create(lv_obj_t * obj);
+-
+-/**
+- * 初始化，没什么好说的，初次使用时调用即可
+- */
+-void page_manager_init(void);
+-
+-/**
+- * 用于不需要回调的页面，直接传入一个obj即可
+- */
+-void page_open_obj(lv_obj_t * obj);
+-
+-/**
+- * 传入一个BasePage指针并显示它作为页面，之前的页面放入堆栈中（并进行on_pause回调）
+- * 如何创建自己的页面类型？见base_page_create()
+- * 或者obj那个用于简单页面也是可以的
+- */
+-void page_open(BasePage * new_page);
+-
+-/**
+- * 销毁当前页面并返回上一页
+- */
+-void page_back(void);
+-
+-/**
+- * 接收按键事件并传给页面
+- */
+-bool page_on_key(key_code_t key_code, key_action_t key_action);
+-
+-/**********************
+- *      MACROS
+- **********************/
+-
+-#ifdef __cplusplus
+-} /* extern "C" */
+-#endif
+-
+-#endif
+diff --git a/pages/page_menu.c b/pages/page_menu.c
+index 683164d..4993850 100644
+--- a/pages/page_menu.c
++++ b/pages/page_menu.c
+@@ -12,8 +12,8 @@
+ #include "page_upgrade.h"
+ #include "page_led.h"
+ #include "main.h"
++#include "page_settings_main.h"
+ #include "platform/str_utils.h"
+-
+ typedef struct
+ {
+     BasePage base;
+@@ -34,6 +34,7 @@ static void btn_usb_click(lv_event_t * e);
+ static void btn_2048_click(lv_event_t * e);
+ static void btn_upgrade_click(lv_event_t * e);
+ static void btn_led_click(lv_event_t * e);
++static void btn_settings_click(lv_event_t * e);
+ 
+ static lv_obj_t * page_menu_obj(MenuPage * page);
+ static void menu_on_destroy(void * p);
+@@ -172,6 +173,14 @@ lv_obj_t * page_menu_obj(MenuPage * page)
+     lv_obj_center(btn_label_demo);
+     lv_obj_add_event_cb(btn_demo, btn_demo_click, LV_EVENT_CLICKED, NULL);
+ 
++        lv_obj_t * btn_settings = lv_btn_create(container);
++    lv_obj_set_size(btn_settings, lv_pct(64), lv_pct(32));
++    lv_obj_align(btn_settings, LV_FLEX_ALIGN_CENTER, 0, 0);
++    lv_obj_t * btn_label_settings = lv_label_create(btn_settings);
++    lv_label_set_text(btn_label_settings, "Settings");
++    lv_obj_center(btn_label_settings);
++    lv_obj_add_event_cb(btn_settings, btn_settings_click, LV_EVENT_CLICKED, NULL);
++    
+     return screen;
+ }
+ 
+@@ -238,4 +247,9 @@ static void btn_upgrade_click(lv_event_t * e)
+ static void btn_led_click(lv_event_t * e)
+ {
+     page_open(page_led_create());
++}
++
++static void btn_settings_click(lv_event_t * e)
++{
++    page_open_obj(page_settings_main());
+ }
+\ No newline at end of file
+diff --git a/pages/page_menu.h b/pages/page_menu.h
+index 2935b87..f3c9cd9 100644
+--- a/pages/page_menu.h
++++ b/pages/page_menu.h
+@@ -10,7 +10,7 @@ extern "C" {
+  *********************/
+ #include "../lvgl/lvgl.h"
+ #include "../lv_lib_100ask/lv_lib_100ask.h"
+-#include "page_manager.h"
++#include "platform/page_manager.h"
+ #include <sys/time.h>
+ #include <time.h>
+ #include <unistd.h>
+diff --git a/pages/page_midi.c b/pages/page_midi.c
+index f251739..1cc2c32 100644
+--- a/pages/page_midi.c
++++ b/pages/page_midi.c
+@@ -1,4 +1,5 @@
+ #include "page_midi.h"
++#include "main.h"
+ 
+ typedef struct
+ {
+@@ -32,7 +33,7 @@ BasePage * page_midi_create(char * filename)
+ 
+     page->base.obj        = page_midi_obj(page, filename);
+     page->base.on_destroy = page_midi_destroy;
+-    return (BasePage *)page;
++    return page;
+ }
+ 
+ static lv_obj_t * page_midi_obj(MidiPage * page, char * filename)
+@@ -45,7 +46,7 @@ static lv_obj_t * page_midi_obj(MidiPage * page, char * filename)
+     page->cycle = false;
+     audio_enable();
+ 
+-    midi_player_t * player = midi_create("./setting/timidity.cfg"); // /mnt/app/factory/play_test.wav
++    midi_player_t * player = midi_create("/mnt/app/dendro/midi/timidity.cfg"); // /mnt/app/factory/play_test.wav
+     if(midi_open(player, filename) == 0 && midi_init(player) == 0) {
+         midi_resume(player);
+         midi_set_finish_callback(player, player_finished, page);
+@@ -60,7 +61,7 @@ static lv_obj_t * page_midi_obj(MidiPage * page, char * filename)
+     lv_label_set_text(btn_control_label, LV_SYMBOL_PAUSE "");
+     lv_obj_center(btn_control_label);
+     lv_obj_add_event_cb(btn_control, control_click, LV_EVENT_CLICKED, page);
+-    page->btn_control_label = btn_control_label;
++    page->btn_control_label      = btn_control_label;
+ 
+     lv_obj_t * slider_progress = lv_slider_create(screen);
+     lv_obj_set_size(slider_progress, lv_pct(80), lv_pct(10));
+@@ -99,7 +100,7 @@ static lv_obj_t * page_midi_obj(MidiPage * page, char * filename)
+     lv_obj_t * clock = lv_text_clock_create(screen);
+     lv_obj_set_size(clock, lv_pct(100), lv_pct(12));
+     lv_obj_align(clock, LV_ALIGN_TOP_MID, 0, lv_pct(3));
+-    lv_obj_set_style_text_align(clock, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
++    lv_obj_set_style_text_align(clock, LV_TEXT_ALIGN_CENTER, NULL);
+ 
+     page->timer = lv_timer_create(timer_tick, 250, page);
+ 
+@@ -114,17 +115,15 @@ static void cycle_click(lv_event_t * e)
+     lv_obj_t * btn_cycle_label = page->btn_cycle_label;
+     page->cycle                = !page->cycle;
+ 
+-    if(page->cycle)
+-        lv_label_set_text(btn_cycle_label, CUSTOM_SYMBOL_CYCLE "");
+-    else
+-        lv_label_set_text(btn_cycle_label, CUSTOM_SYMBOL_BAN "");
++    if(page->cycle) lv_label_set_text(btn_cycle_label, CUSTOM_SYMBOL_CYCLE "");
++    else lv_label_set_text(btn_cycle_label, CUSTOM_SYMBOL_BAN "");
+ }
+ 
+ static void control_click(lv_event_t * e)
+ {
+     MidiPage * page = (MidiPage *)e->user_data;
+     if(!page) return;
+-    midi_player_t * player       = page->player;
++    midi_player_t * player         = page->player;
+     lv_obj_t * btn_control_label = page->btn_control_label;
+     if(!player || !btn_control_label) return;
+ 
+@@ -141,15 +140,17 @@ static void control_click(lv_event_t * e)
+     }
+ }
+ 
+-static void slider_progress_changed(lv_event_t * e)
+-{}
++static void slider_progress_changed(lv_event_t * e) 
++{
++
++}
+ static void slider_progress_released(lv_event_t * e)
+ {
+-    MidiPage * page        = (MidiPage *)e->user_data;
++    MidiPage * page = (MidiPage *)e->user_data;
+     midi_player_t * player = page->player;
+     if(!player) return;
+     midi_state_t state = midi_get_state(player);
+-    if(state == MIDI_PLAYING || state == MIDI_PAUSED) {
++    if(state == MIDI_PLAYING || state == MIDI_PAUSED){
+         lv_obj_t * slider = lv_event_get_target(e);
+         int value         = lv_slider_get_value(slider);
+         midi_seek_pct(player, value);
+@@ -160,7 +161,7 @@ static void slider_volume_changed(lv_event_t * e)
+ {
+     lv_obj_t * slider = lv_event_get_target(e);
+     int value         = lv_slider_get_value(slider);
+-
++    
+     audio_volume_set(value);
+ }
+ 
+@@ -181,7 +182,8 @@ static void player_finished(void * p)
+     if(page->cycle) {
+         midi_seek_pct(player, 0);
+         midi_resume(player);
+-    } else {
++    }
++    else {
+         lv_label_set_text(page->btn_control_label, LV_SYMBOL_PLAY "");
+         audio_disable();
+     }
+diff --git a/pages/page_midi.h b/pages/page_midi.h
+index b1c19c1..3f5bc8e 100644
+--- a/pages/page_midi.h
++++ b/pages/page_midi.h
+@@ -10,14 +10,13 @@ extern "C" {
+  *********************/
+ #include "../lvgl/lvgl.h"
+ #include "../lv_lib_100ask/lv_lib_100ask.h"
+-#include "page_manager.h"
++#include "platform/page_manager.h"
+ #include "platform/midi_player.h"
+ #include "platform/audio_ctrl.h"
+ #include "views/lv_text_clock.h"
+ #include <unistd.h>
+ #include <stdio.h>
+ #include <stdbool.h>
+-#include <main.h>
+ 
+ /*********************
+  *      DEFINES
+diff --git a/pages/page_recorder.h b/pages/page_recorder.h
+index ffb19b3..44c782a 100644
+--- a/pages/page_recorder.h
++++ b/pages/page_recorder.h
+@@ -11,7 +11,7 @@ extern "C" {
+ 
+ #include "../lvgl/lvgl.h"
+ #include "../lv_lib_100ask/lv_lib_100ask.h"
+-#include "page_manager.h"
++#include "platform/page_manager.h"
+ #include "platform/alsa_rec.h"
+ #include "platform/alsa_mixer.h"
+ #include <stdio.h>
+diff --git a/pages/page_txt.c b/pages/page_txt.c
+index de71c3b..4f00095 100644
+--- a/pages/page_txt.c
++++ b/pages/page_txt.c
+@@ -3,6 +3,7 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
++#include <errno.h>
+ #include "lvgl/src/misc/lv_txt.h"
+ 
+ #define MAX_LINES   9
+@@ -55,7 +56,7 @@ BasePage * page_txt_create(char * filename)
+     FILE * fp = fopen(filename, "r");
+     if(fp == NULL) {
+         lv_obj_t * error_label = lv_label_create(screen);
+-        lv_label_set_text(error_label, "Error: 无法打开此文件!");
++        lv_label_set_text_fmt(error_label, "Error: 无法打开此文件\n%s", strerror(errno));
+         lv_obj_align(error_label, LV_ALIGN_CENTER, 0, 0);
+ 
+         lv_obj_t * btn_back = lv_btn_create(screen);
+diff --git a/pages/page_txt.h b/pages/page_txt.h
+index 7ffe1d4..3e1634d 100644
+--- a/pages/page_txt.h
++++ b/pages/page_txt.h
+@@ -11,7 +11,7 @@ extern "C" {
+  *********************/
+  
+ #include "../lvgl/lvgl.h"
+-#include "page_manager.h"
++#include "platform/page_manager.h"
+ 
+ /*********************
+  *      DEFINES
+diff --git a/pages/page_upgrade.h b/pages/page_upgrade.h
+index b32ef54..5d6d3cc 100644
+--- a/pages/page_upgrade.h
++++ b/pages/page_upgrade.h
+@@ -6,7 +6,7 @@ extern "C" {
+ #endif
+ 
+ #include "../lvgl/lvgl.h"
+-#include "page_manager.h"
++#include "platform/page_manager.h"
+ #include "page_txt.h"
+ #include "../cJSON/cJSON.h"
+ #include <stdio.h>
+diff --git a/pages/page_usb.h b/pages/page_usb.h
+index b91f948..843f9ab 100644
+--- a/pages/page_usb.h
++++ b/pages/page_usb.h
+@@ -6,7 +6,7 @@ extern "C" {
+ #endif
+ 
+ #include "../lvgl/lvgl.h"
+-#include "page_manager.h"
++#include "platform/page_manager.h"
+ #include <stdlib.h>
+ #include <string.h>
+ #include <unistd.h>
+diff --git a/views/lv_text_clock.c b/views/lv_text_clock.c
+index 6f198ff..de83495 100644
+--- a/views/lv_text_clock.c
++++ b/views/lv_text_clock.c
+@@ -48,7 +48,7 @@ static void lv_text_clock_constructor(const lv_obj_class_t * class_p, lv_obj_t *
+     memset(clock->time_str, 0, sizeof(clock->time_str));
+ 
+     /* 设置初始文本 */
+-    lv_label_set_text(obj, "00:00:00");
++    lv_label_set_text(&clock->label, "00:00:00");
+     
+     // 立即更新时间 
+     lv_text_clock_update_time(clock);
+@@ -106,7 +106,7 @@ static void lv_text_clock_update_time(lv_text_clock_t * clock)
+     timeinfo = localtime(&rawtime);
+     
+     if(timeinfo == NULL) {
+-        lv_label_set_text((lv_obj_t *)clock, "Error");
++        lv_label_set_text(&clock->label, "Error");
+         return;
+     }
+     
+@@ -118,5 +118,5 @@ static void lv_text_clock_update_time(lv_text_clock_t * clock)
+              timeinfo->tm_sec);
+     
+     /* 更新标签文本 */
+-    lv_label_set_text((lv_obj_t *)clock, clock->time_str);
++    lv_label_set_text(&clock->label, clock->time_str);
+ }

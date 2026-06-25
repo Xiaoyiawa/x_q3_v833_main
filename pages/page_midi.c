@@ -1,4 +1,5 @@
 #include "page_midi.h"
+#include "main.h"
 
 typedef struct
 {
@@ -32,7 +33,7 @@ BasePage * page_midi_create(char * filename)
 
     page->base.obj        = page_midi_obj(page, filename);
     page->base.on_destroy = page_midi_destroy;
-    return (BasePage *)page;
+    return page;
 }
 
 static lv_obj_t * page_midi_obj(MidiPage * page, char * filename)
@@ -45,7 +46,7 @@ static lv_obj_t * page_midi_obj(MidiPage * page, char * filename)
     page->cycle = false;
     audio_enable();
 
-    midi_player_t * player = midi_create("./setting/timidity.cfg"); // /mnt/app/factory/play_test.wav
+    midi_player_t * player = midi_create("/mnt/app/dendro/midi/timidity.cfg"); // /mnt/app/factory/play_test.wav
     if(midi_open(player, filename) == 0 && midi_init(player) == 0) {
         midi_resume(player);
         midi_set_finish_callback(player, player_finished, page);
@@ -60,7 +61,7 @@ static lv_obj_t * page_midi_obj(MidiPage * page, char * filename)
     lv_label_set_text(btn_control_label, LV_SYMBOL_PAUSE "");
     lv_obj_center(btn_control_label);
     lv_obj_add_event_cb(btn_control, control_click, LV_EVENT_CLICKED, page);
-    page->btn_control_label = btn_control_label;
+    page->btn_control_label      = btn_control_label;
 
     lv_obj_t * slider_progress = lv_slider_create(screen);
     lv_obj_set_size(slider_progress, lv_pct(80), lv_pct(10));
@@ -99,7 +100,7 @@ static lv_obj_t * page_midi_obj(MidiPage * page, char * filename)
     lv_obj_t * clock = lv_text_clock_create(screen);
     lv_obj_set_size(clock, lv_pct(100), lv_pct(12));
     lv_obj_align(clock, LV_ALIGN_TOP_MID, 0, lv_pct(3));
-    lv_obj_set_style_text_align(clock, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_obj_set_style_text_align(clock, LV_TEXT_ALIGN_CENTER, NULL);
 
     page->timer = lv_timer_create(timer_tick, 250, page);
 
@@ -114,17 +115,15 @@ static void cycle_click(lv_event_t * e)
     lv_obj_t * btn_cycle_label = page->btn_cycle_label;
     page->cycle                = !page->cycle;
 
-    if(page->cycle)
-        lv_label_set_text(btn_cycle_label, CUSTOM_SYMBOL_CYCLE "");
-    else
-        lv_label_set_text(btn_cycle_label, CUSTOM_SYMBOL_BAN "");
+    if(page->cycle) lv_label_set_text(btn_cycle_label, CUSTOM_SYMBOL_CYCLE "");
+    else lv_label_set_text(btn_cycle_label, CUSTOM_SYMBOL_BAN "");
 }
 
 static void control_click(lv_event_t * e)
 {
     MidiPage * page = (MidiPage *)e->user_data;
     if(!page) return;
-    midi_player_t * player       = page->player;
+    midi_player_t * player         = page->player;
     lv_obj_t * btn_control_label = page->btn_control_label;
     if(!player || !btn_control_label) return;
 
@@ -141,15 +140,17 @@ static void control_click(lv_event_t * e)
     }
 }
 
-static void slider_progress_changed(lv_event_t * e)
-{}
+static void slider_progress_changed(lv_event_t * e) 
+{
+
+}
 static void slider_progress_released(lv_event_t * e)
 {
-    MidiPage * page        = (MidiPage *)e->user_data;
+    MidiPage * page = (MidiPage *)e->user_data;
     midi_player_t * player = page->player;
     if(!player) return;
     midi_state_t state = midi_get_state(player);
-    if(state == MIDI_PLAYING || state == MIDI_PAUSED) {
+    if(state == MIDI_PLAYING || state == MIDI_PAUSED){
         lv_obj_t * slider = lv_event_get_target(e);
         int value         = lv_slider_get_value(slider);
         midi_seek_pct(player, value);
@@ -160,7 +161,7 @@ static void slider_volume_changed(lv_event_t * e)
 {
     lv_obj_t * slider = lv_event_get_target(e);
     int value         = lv_slider_get_value(slider);
-
+    
     audio_volume_set(value);
 }
 
@@ -181,7 +182,8 @@ static void player_finished(void * p)
     if(page->cycle) {
         midi_seek_pct(player, 0);
         midi_resume(player);
-    } else {
+    }
+    else {
         lv_label_set_text(page->btn_control_label, LV_SYMBOL_PLAY "");
         audio_disable();
     }

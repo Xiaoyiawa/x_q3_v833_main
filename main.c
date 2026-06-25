@@ -1,6 +1,5 @@
 #include "main.h"
 
-#include "lvgl/demos/lv_demos.h"
 #include "lv_drivers/display/fbdev.h"
 #include "lv_drivers/indev/evdev.h"
 #include "lv_lib_100ask/lv_lib_100ask.h"
@@ -14,9 +13,10 @@
 #include <string.h>
 #include "platform/audio_ctrl.h"
 #include "platform/battery_manager.h"
+#include "platform/config_manager.h"
 
 // 请教DeepSeek实现了简易页面管理器，100ask那个实际上不太好用……
-#include "pages/page_manager.h"
+#include "platform/page_manager.h"
 #include "pages/page_home.h"
 
 /*
@@ -62,7 +62,6 @@ static lv_style_t style_default;
 
 int main(int argc, char * argv[])
 {
-
     printf("ciallo lvgl\n");
 #if LV_USE_PERF_MONITOR
     printf("monitor on\n");
@@ -107,8 +106,6 @@ int main(int argc, char * argv[])
     system("killall robotd");
     system("killall robot_run");
     system("killall robot_run_1");
-    system("echo 0 > /dev/led_ctrl");
-    system("mkdir -p /tmp/dendro/wpa_ctrl");
     usleep(100000);
 
 
@@ -125,7 +122,6 @@ int main(int argc, char * argv[])
     lcd_init();
     lcd_off();
     lcd_on();
-    lcd_set_brightness(SCREEN_BRIGHTNESS_DEFAULT);
     touch_on();
 
     lv_init();
@@ -156,28 +152,35 @@ int main(int argc, char * argv[])
 
     audio_init();
 
-    
 
     lv_freetype_init(128, 4, 0);
 
-    lv_ft_info_t ft_info;
-    ft_info.name   = "./res/font.ttf";
-    ft_info.weight = 16;
-    ft_info.style  = FT_FONT_STYLE_NORMAL;
-    ft_info.mem    = NULL;
+    lv_font_t * font = font_get(16, FT_FONT_STYLE_NORMAL);
 
-    if(lv_ft_font_init(&ft_info)) {
+    if(font) {
         lv_theme_t * theme = lv_theme_default_init(disp, lv_palette_main(LV_PALETTE_BLUE),
-                                                   lv_palette_main(LV_PALETTE_CYAN), false, ft_info.font);
-        theme->font_normal = ft_info.font;
-        theme->font_large  = ft_info.font;
-        theme->font_small  = ft_info.font; // 为啥子设置不上？
+                                            lv_palette_main(LV_PALETTE_CYAN), false, font);
+        theme->font_normal = font;
+        theme->font_large  = font;
+        theme->font_small  = font; // 为啥子设置不上？
         lv_disp_set_theme(disp, theme);
 
         lv_style_init(&style_default);
-        lv_style_set_text_font(&style_default, ft_info.font);
+        lv_style_set_text_font(&style_default, font);
         lv_obj_add_style(lv_scr_act(), &style_default, 0);
     }
+
+    // 配置文件
+    bool setup;
+    if(config_read_bool(MAIN_CONFIG_FILE, CFG_SETUP, false, &setup) == -1 || !setup) {
+        config_write_bool(MAIN_CONFIG_FILE, CFG_SETUP, true);
+    }
+    int volume;
+    config_read_int(MAIN_CONFIG_FILE, CFG_VOLUME, 0, &volume);
+    audio_volume_set(volume);
+    config_read_int(MAIN_CONFIG_FILE, CFG_BRIGHTNESS, SCREEN_BRIGHTNESS_DEFAULT, &lcd_brightness);
+    lcd_set_brightness_inner(lcd_brightness);
+    
 
     page_manager_init();
     page_open(page_home_create());
@@ -331,6 +334,14 @@ void lcd_set_brightness(int brightness)
 }
 
 /**
+ * 获取LCD背光亮度
+ */
+uint32_t lcd_get_brightness(void)
+{
+    return lcd_brightness;
+}
+
+/**
  * 读取电源按钮
  */
 void key_read_power(void)
@@ -409,6 +420,7 @@ void sys_wake(void)
         lcd_on();
         lcd_set_brightness_inner(lcd_brightness);
         evdev_refresh_press_ts();
+        //system("echo interactive > /sys/devices/system/cpu/cpufreq/policy0/scaling_governor");
     }
 }
 
@@ -422,6 +434,7 @@ void sys_sleep(void)
         ts_sleep = tick_get();
         touch_off();
         lcd_off();
+        //if(!dont_deep_sleep_enabled) system("echo powersave > /sys/devices/system/cpu/cpufreq/policy0/scaling_governor");
     }
 }
 
@@ -556,4 +569,22 @@ lv_font_t * font_get(uint16_t weight, uint16_t font_style)
     }
 
     return NULL;
+}
+
+/**
+ * 更新布局并获取该控件的百分比宽度
+ */
+lv_coord_t lv_obj_get_width_pct(lv_obj_t * obj, float pct)
+{
+    lv_obj_update_layout(obj);
+    return (lv_coord_t)(lv_obj_get_width(obj) * pct / 100);
+}
+
+/**
+ * 更新布局并获取该控件的百分比高度
+ */
+lv_coord_t lv_obj_get_height_pct(lv_obj_t * obj, float pct)
+{
+    lv_obj_update_layout(obj);
+    return (lv_coord_t)(lv_obj_get_height(obj) * pct / 100);
 }

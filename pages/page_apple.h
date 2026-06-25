@@ -15,7 +15,7 @@ extern "C" {
 #include <stdio.h>
 #include <stdbool.h>
 
-#include "page_manager.h"
+#include "platform/page_manager.h"
 #include "platform/ff_player.h"
 #include "platform/audio_ctrl.h"
 

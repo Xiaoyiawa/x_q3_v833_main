@@ -28,7 +28,7 @@ extern "C" {
 /**********************
  * GLOBAL PROTOTYPES
  **********************/
-BasePage * page_menu_create(void);
+lv_obj_t * page_menu(void);
 
 /**********************
  *      MACROS
