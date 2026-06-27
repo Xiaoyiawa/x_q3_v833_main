@@ -1,4 +1,4 @@
-export TOOLCHAIN=$HOME/arm-unknown-linux-musleabihf
+export TOOLCHAIN=/home/xiaoyi/arm-unknown-linux-musleabihf
 export PATH=$PATH:$TOOLCHAIN/bin
 export CC=$TOOLCHAIN/bin/arm-unknown-linux-musleabihf-gcc
 export CXX=$TOOLCHAIN/bin/arm-unknown-linux-musleabihf-g++

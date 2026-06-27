@@ -56,8 +56,9 @@ BasePage * page_txt_create(char * filename)
     FILE * fp = fopen(filename, "r");
     if(fp == NULL) {
         lv_obj_t * error_label = lv_label_create(screen);
-        lv_label_set_text_fmt(error_label, "Error: 无法打开此文件\n%s", strerror(errno));
+        lv_label_set_text_fmt(error_label, "无法打开此文件\n%s", strerror(errno));
         lv_obj_align(error_label, LV_ALIGN_CENTER, 0, 0);
+        lv_obj_set_style_text_align(error_label, LV_TEXT_ALIGN_CENTER, 0);
 
         lv_obj_t * btn_back = lv_btn_create(screen);
         lv_obj_set_size(btn_back, lv_pct(25), lv_pct(12));

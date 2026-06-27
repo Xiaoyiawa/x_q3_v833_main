@@ -10,6 +10,7 @@
 
 #if LV_USE_100ASK_FILE_EXPLORER != 0
 #include <string.h>
+#include <stdlib.h>
 
 /*********************
  *      DEFINES
@@ -630,31 +631,15 @@ static void brower_file_event_handler(lv_event_t * e)
     }
     else if(code == LV_EVENT_LONG_PRESSED) {
         explorer->long_pressed = true;
-        //struct stat stat_buf;
-        char * file_name[LV_100ASK_FILE_EXPLORER_PATH_MAX_LEN];
         char * str_fn = NULL;
         uint16_t row;
         uint16_t col;
 
-        memset(file_name, 0, sizeof(file_name));
         lv_table_get_selected_cell(explorer->file_list, &row, &col);
         str_fn = lv_table_get_cell_value(explorer->file_list, row, col);
 
         str_fn = str_fn+5;
-        if((strcmp(str_fn, ".") == 0))  return;
-        
-        if((strcmp(str_fn, "..") == 0) && (strlen(explorer->cur_path) > 3))
-        {
-            strip_ext(explorer->cur_path);
-            strip_ext(explorer->cur_path); // 去掉最后的 '/' 路径
-            lv_snprintf(file_name, sizeof(file_name), "%s", explorer->cur_path);
-        }
-        else
-        {
-            if(strcmp(str_fn, "..") != 0){
-                lv_snprintf(file_name, sizeof(file_name), "%s%s", explorer->cur_path, str_fn);
-            }
-        }
+        if((strcmp(str_fn, ".") == 0) || (strcmp(str_fn, "..") == 0))  return;
 
         if(strcmp(str_fn, "..") != 0) {
             explorer->sel_fp = str_fn;
@@ -712,11 +697,6 @@ static void show_dir(lv_obj_t * obj, char * path)
         } else if(is_end_with(fn, ".mp4", false) || is_end_with(fn, ".avi", false)) {
             lv_table_set_cell_value_fmt(explorer->file_list, index, 0, LV_SYMBOL_VIDEO "  %s", fn);
             lv_table_set_cell_value(explorer->file_list, index, 1, "3");
-        } else if(is_end_with(fn, ".txt", false) || is_end_with(fn, ".log", false) ||
-                  is_end_with(fn, ".json", false) || is_end_with(fn, ".md", false) ||
-                  is_end_with(fn, ".conf", false)) {
-            lv_table_set_cell_value_fmt(explorer->file_list, index, 0, LV_SYMBOL_TXT "  %s", fn);
-            lv_table_set_cell_value(explorer->file_list, index, 1, "4");
         } else if(is_end_with(fn, ".", false) || is_end_with(fn, "..", false)) {
             /*is dir*/
             //lv_table_set_cell_value_fmt(explorer->file_list, index, 0, LV_SYMBOL_DIRECTORY "  %s", fn);

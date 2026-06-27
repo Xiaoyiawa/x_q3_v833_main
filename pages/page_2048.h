@@ -12,9 +12,6 @@ extern "C" {
 #include "main.h"
 #include "../lv_lib_100ask/lv_lib_100ask.h"
 #include "page_manager.h"
-#include "../cJSON/cJSON.h"
-#include <sys/stat.h>
-#include <errno.h>
 
 /*********************
  *      TYPEDEFS

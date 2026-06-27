@@ -24,9 +24,10 @@ typedef struct
     file_operation_t file_operation;
 } FileManagerPage;
 
-static const char * btn_txts[] = {"是", "否", NULL};
+static const char * btn_txts[] = {"YES", "NO", NULL};
 
 static lv_obj_t * page_file_manager_obj(FileManagerPage * page);
+static bool is_blacklisted(const char * path);
 static void explorer_event_handler(lv_event_t * e);
 static void back_click(lv_event_t * e);
 static void container_act_click(lv_event_t * e);
@@ -38,16 +39,68 @@ static void act_msgbox_delete(lv_event_t * e);
 static void act_msgbox_paste(lv_event_t * e);
 static bool page_file_manager_on_key(void * p, key_code_t key_code, key_action_t key_action);
 
+static bool is_blacklisted(const char * path)
+{
+    char tmp[LV_100ASK_FILE_EXPLORER_PATH_MAX_LEN];
+    strcpy(tmp, path);
+
+    // 去除末尾多余的斜杠（但保留根目录的单个斜杠）
+    size_t len = strlen(tmp);
+    if (len > 1 && tmp[len-1] == '/') {
+        tmp[len-1] = '\0';
+    }
+
+    // 1. 根目录本身
+    if (strcmp(tmp, "/") == 0) return true;
+
+    // 2. 根目录下的系统文件夹（禁止目录本身及其所有子内容）
+    // 这些是常见的系统关键目录，禁止任何操作
+    if (strcmp(tmp, "/bin") == 0 || str_begin_with(tmp, "/bin/", true)) return true;
+    if (strcmp(tmp, "/www") == 0 || str_begin_with(tmp, "/boot/", true)) return true;
+    if (strcmp(tmp, "/dev") == 0 || str_begin_with(tmp, "/dev/", true)) return true;
+    if (strcmp(tmp, "/etc") == 0 || str_begin_with(tmp, "/etc/", true)) return true;
+    if (strcmp(tmp, "/lib") == 0 || str_begin_with(tmp, "/lib/", true)) return true;
+    if (strcmp(tmp, "/proc") == 0 || str_begin_with(tmp, "/proc/", true)) return true;
+    if (strcmp(tmp, "/sbin") == 0 || str_begin_with(tmp, "/sbin/", true)) return true;
+    if (strcmp(tmp, "/sys") == 0 || str_begin_with(tmp, "/sys/", true)) return true;
+    if (strcmp(tmp, "/usr") == 0 || str_begin_with(tmp, "/usr/", true)) return true;
+    if (strcmp(tmp, "/var") == 0 || str_begin_with(tmp, "/var/", true)) return true;
+    if (strcmp(tmp, "/root") == 0 || str_begin_with(tmp, "/root/", true)) return true;
+    if (strcmp(tmp, "/data") == 0 || str_begin_with(tmp, "/data/", true)) return true;
+    if (strcmp(tmp, "/overlay") == 0 || str_begin_with(tmp, "/overlay/", true)) return true;
+    if (strcmp(tmp, "/home") == 0 || str_begin_with(tmp, "/home/", true)) return true;
+    if (strcmp(tmp, "/tmp") == 0 || str_begin_with(tmp, "/tmp/", true)) return true;
+    if (strcmp(tmp, "/squashfs") == 0 || str_begin_with(tmp, "/squashfs/", true)) return true;
+    if (strcmp(tmp, "/run") == 0 || str_begin_with(tmp, "/run/", true)) return true;
+    if (strcmp(tmp, "/rom") == 0 || str_begin_with(tmp, "/rom/", true)) return true;
+
+    if (strcmp(tmp, "/mnt") == 0) return true;
+    if (strcmp(tmp, "/mnt/UDISK") == 0) return true;
+    if (strcmp(tmp, "/mnt/UDISK/startup.sh") == 0) return true;
+    if (strcmp(tmp, "/mnt/UDISK/lvgl") == 0 || str_begin_with(tmp, "/mnt/UDISK/lvgl/", true)) return true;
+    if (strcmp(tmp, "/mnt/sdcard") == 0) return true;
+
+    /* 7. /mnt/app 规则：
+      - /mnt/app 本身禁止
+      - /mnt/app/ 下的其他子目录禁止，但 /mnt/app/dendro 整棵子树允许 */
+    if (str_begin_with(tmp, "/mnt/app", true)) {
+        if (strcmp(tmp, "/mnt/app") == 0) return true;
+        if (strcmp(tmp, "/mnt/app/dendro") == 0 || str_begin_with(tmp, "/mnt/app/dendro/", true)) return false; // 例外允许
+        return true; // 其他 /mnt/app/* 禁止
+    }
+
+    // 其余所有路径允许操作
+    return false;
+}
+
 static bool is_file_safe(char * file_name)
 {
-   (void)file_name;
-   return true;
+    return !is_blacklisted(file_name);
 }
 
 static bool is_directory_safe(char * file_name)
 {
-  (void)file_name;
-  return true;
+    return !is_blacklisted(file_name);
 }
 
 static bool is_directory(char * file_name)
@@ -121,7 +174,7 @@ lv_obj_t * page_file_manager_obj(FileManagerPage * page)
     lv_obj_t * btn_cut = lv_btn_create(list_act);
     lv_obj_set_size(btn_cut, lv_pct(100), lv_pct(22));
     lv_obj_t * btn_label_cut = lv_label_create(btn_cut);
-    lv_label_set_text(btn_label_cut, "剪切");
+    lv_label_set_text(btn_label_cut, "剪贴");
     lv_obj_center(btn_label_cut);
     lv_obj_add_event_cb(btn_cut, act_cut_click, LV_EVENT_CLICKED, page);
 
@@ -190,7 +243,7 @@ static void explorer_event_handler(lv_event_t * e)
 
         if(str_end_with(file_name, ".txt", false) || str_end_with(file_name, ".json", false) || 
             str_end_with(file_name, ".conf", false) || str_end_with(file_name, ".log", false) ||
-            str_end_with(file_name, ".cfg", false)) {
+            str_end_with(file_name, ".cfg", false) || str_end_with(file_name, ".sh", false)) {
             page_open(page_txt_create(file_name));
         }   
     }
@@ -206,15 +259,15 @@ static void act_cut_click(lv_event_t * e)
 {
     FileManagerPage * page = (FileManagerPage *)e->user_data;
 
-    if(!is_directory_safe(page->file_current)) {
-        custom_toast_create("不允许的操作!");
+    if(!is_file_safe(page->file_current)) {
+        custom_toast_create("不允许的操作! ");
         return;
     }
 
     strcpy(page->file_clipboard, page->file_current);
     page->file_operation = FILE_OPERATION_CUT;
     lv_obj_add_flag(page->container_act, LV_OBJ_FLAG_HIDDEN);
-    custom_toast_create("已剪切");
+    custom_toast_create("已剪贴");
 }
 
 static void act_copy_click(lv_event_t * e)
@@ -236,7 +289,7 @@ static void act_paste_click(lv_event_t * e)
     }
 
     if(!is_directory_safe(page->file_current)) {
-        custom_toast_create("不允许的操作");
+        custom_toast_create("不允许的操作! ");
         return;
     }
 
@@ -244,19 +297,19 @@ static void act_paste_click(lv_event_t * e)
     switch (page->file_operation)
     {
     case FILE_OPERATION_CUT:
-        mbox = custom_msgbox_create("移动:", 
+        mbox = custom_msgbox_create("移动文件:", 
                 page->file_clipboard,
                 btn_txts, false);
         break;
         
     case FILE_OPERATION_COPY:
-        mbox = custom_msgbox_create("复制:", 
+        mbox = custom_msgbox_create("复制文件:", 
                 page->file_clipboard,
                 btn_txts, false);
         break;
     
     default:
-        custom_toast_create("剪切板是空的");
+        custom_toast_create("剪贴板是空的");
         break;
     }
 
@@ -267,10 +320,10 @@ static void act_delete_click(lv_event_t * e)
 {
     FileManagerPage * page = (FileManagerPage *)e->user_data;
     if(!is_file_safe(page->file_current)) {
-        custom_toast_create("不允许的操作");
+        custom_toast_create("不允许的操作!");
         return;
     }
-    lv_obj_t * mbox = custom_msgbox_create("已删除:", 
+    lv_obj_t * mbox = custom_msgbox_create("要删除文件吗？", 
                 lv_100ask_file_explorer_get_sel_fn(page->file_explorer),
                 btn_txts, false);
     lv_obj_add_event_cb(mbox, act_msgbox_delete, LV_EVENT_VALUE_CHANGED, page);
@@ -283,7 +336,7 @@ static void act_msgbox_delete(lv_event_t * e)
     lv_obj_t * msgbox = lv_obj_get_parent(lv_event_get_target(e));
     char * txt = lv_msgbox_get_active_btn_text(msgbox);
 
-    if(strcmp(txt, "是") == 0) {
+    if(strcmp(txt, "YES") == 0) {
         char * file_name = &page->file_current[0];
         int cmd_length   = 10 + strlen(file_name);
         char * cmd       = malloc(cmd_length);
@@ -310,7 +363,7 @@ static void act_msgbox_paste(lv_event_t * e)
     lv_obj_t * msgbox = lv_obj_get_parent(lv_event_get_target(e));
     char * txt = lv_msgbox_get_active_btn_text(msgbox);
 
-    if (strcmp(txt, "是") == 0) {
+    if (strcmp(txt, "YES") == 0) {
         char * file_current   = &page->file_current[0];
         char * file_clipboard = &page->file_clipboard[0];
 
@@ -328,9 +381,9 @@ static void act_msgbox_paste(lv_event_t * e)
                 cmd_length = 15 + strlen(file_clipboard) + strlen(file_current);
                 cmd        = malloc(cmd_length);
                 if(cmd == NULL) { perror("malloc"); exit(EXIT_FAILURE); }
-                lv_snprintf(cmd, cmd_length, "cp -r -f \"%s\" \"%s\"", file_clipboard, file_current);
+                lv_snprintf(cmd, cmd_length, "cp -rf \"%s\" \"%s\"", file_clipboard, file_current);
                 break;
-            default: custom_toast_create("未知操作!"); return;
+            default: custom_toast_create("未知的操作!"); return;
         }
 
         printf("[file_manager] %s\n", cmd);

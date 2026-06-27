@@ -106,6 +106,7 @@ int main(int argc, char * argv[])
     system("killall robotd");
     system("killall robot_run");
     system("killall robot_run_1");
+    system("mkdir -p /tmp/dendro/");
     usleep(100000);
 
 

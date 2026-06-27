@@ -1,5 +1,7 @@
 #include "page_2048.h"
-
+#include "../cJSON/cJSON.h"
+#include <sys/stat.h>
+#include <errno.h>
 
 #define SAVE_PATH "./setting/2048.json"
 

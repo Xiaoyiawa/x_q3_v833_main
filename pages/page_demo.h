@@ -12,7 +12,7 @@ extern "C" {
 #include "../lv_lib_100ask/lv_lib_100ask.h"
 #include <stdlib.h>
 #include "main.h"
-#include "platform/page_manager.h"
+#include "page_manager.h"
 
 /*********************
  *      DEFINES

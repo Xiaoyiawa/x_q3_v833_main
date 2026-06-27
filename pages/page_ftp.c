@@ -1,4 +1,11 @@
 #include "page_ftp.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include "../lv_drivers/display/fbdev.h"
 
 #include "main.h"
 
