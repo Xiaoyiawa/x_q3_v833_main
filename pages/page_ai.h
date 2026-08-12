@@ -1,5 +1,6 @@
-#ifndef PROJ_PAGE_SETTINGS_MAIN_H
-#define PROJ_PAGE_SETTINGS_MAIN_H
+// page_ai.h
+#ifndef PROJ_PAGE_AI_H
+#define PROJ_PAGE_AI_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -9,14 +10,7 @@ extern "C" {
  *      INCLUDES
  *********************/
 #include "../lvgl/lvgl.h"
-#include "../lv_lib_100ask/lv_lib_100ask.h"
 #include "page_manager.h"
-#include <sys/time.h>
-#include <time.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
 
 /*********************
  *      DEFINES
@@ -29,7 +23,7 @@ extern "C" {
 /**********************
  * GLOBAL PROTOTYPES
  **********************/
-lv_obj_t * page_settings_main(void);
+BasePage * page_ai_create(void);
 
 /**********************
  *      MACROS
@@ -39,4 +33,4 @@ lv_obj_t * page_settings_main(void);
 } /* extern "C" */
 #endif
 
-#endif
+#endif /* PROJ_PAGE_AI_H */

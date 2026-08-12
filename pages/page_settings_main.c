@@ -1,21 +1,24 @@
 #include "page_settings_main.h"
 
 #include "page_demo.h"
+#include "main.h"
 #include "page_txt.h"
+#include "page_wifi.h"
 #include "page_upgrade.h"
 #include "page_debug.h"
-#include "main.h"
 #include "platform/str_utils.h"
 #include "platform/audio_ctrl.h"
 #include "platform/config_manager.h"
 #include "views/custom_msgbox.h"
+#include "platform/config_manager.h"
 
 static void btn_demo_click(lv_event_t * e);
 static void btn_about_click(lv_event_t * e);
 static void btn_developer_click(lv_event_t * e);
-static void btn_back_click(lv_event_t * e);
 static void btn_upgrade_click(lv_event_t * e);
 static void btn_debug_click(lv_event_t * e);
+static void btn_wifi_click(lv_event_t * e);
+static void btn_back_click(lv_event_t * e);
 static void slider_brightness_changed(lv_event_t * e);
 static void slider_brightness_set(lv_event_t * e);
 static void slider_volume_changed(lv_event_t * e);
@@ -45,7 +48,7 @@ lv_obj_t * page_settings_main(void)
     lv_obj_add_event_cb(btn_back, btn_back_click, LV_EVENT_CLICKED, NULL);
 
     lv_obj_t * label_brightness = lv_label_create(container);
-    lv_label_set_text(label_brightness, "屏幕亮度");
+    lv_label_set_text(label_brightness, "亮度");
     lv_obj_t * slider_brightness = lv_slider_create(container);
 	lv_obj_set_size(slider_brightness, lv_pct(80), lv_pct(10));
     lv_obj_set_style_translate_x(slider_brightness, lv_obj_get_width_pct(container, 5), LV_STATE_DEFAULT);
@@ -63,6 +66,22 @@ lv_obj_t * page_settings_main(void)
     lv_slider_set_value(slider_volume, audio_volume_get(), LV_ANIM_OFF);
 	lv_obj_add_event_cb(slider_volume, slider_volume_changed, LV_EVENT_VALUE_CHANGED, NULL);
 	lv_obj_add_event_cb(slider_volume, slider_volume_set, LV_EVENT_RELEASED, NULL);
+	
+	    lv_obj_t *btn_wifi = lv_btn_create(container);
+    lv_obj_set_size(btn_wifi, lv_pct(64), lv_pct(32));
+    lv_obj_align(btn_wifi, LV_FLEX_ALIGN_CENTER, 0, 0);
+    lv_obj_t *btn_label_wifi = lv_label_create(btn_wifi);
+    lv_label_set_text(btn_label_wifi, "WiFi");
+    lv_obj_center(btn_label_wifi);
+    lv_obj_add_event_cb(btn_wifi, btn_wifi_click, LV_EVENT_CLICKED, NULL);
+
+    lv_obj_t * btn_upgrade = lv_btn_create(container);
+    lv_obj_set_size(btn_upgrade, lv_pct(64), lv_pct(32));
+    lv_obj_align(btn_upgrade, LV_FLEX_ALIGN_CENTER, 0, 0);
+    lv_obj_t * btn_label_upgrade = lv_label_create(btn_upgrade);
+    lv_label_set_text(btn_label_upgrade, "软件更新");
+    lv_obj_center(btn_label_upgrade);
+    lv_obj_add_event_cb(btn_upgrade, btn_upgrade_click, LV_EVENT_CLICKED, NULL);
 
     lv_obj_t * btn_demo = lv_btn_create(container);
     lv_obj_set_size(btn_demo, lv_pct(64), lv_pct(32));
@@ -71,16 +90,7 @@ lv_obj_t * page_settings_main(void)
     lv_label_set_text(btn_label_demo, "Test");
     lv_obj_center(btn_label_demo);
     lv_obj_add_event_cb(btn_demo, btn_demo_click, LV_EVENT_CLICKED, NULL);
-    
-    lv_obj_t * btn_upgrade = lv_btn_create(container);
-    lv_obj_set_size(btn_upgrade, lv_pct(64), lv_pct(32));
-    lv_obj_align(btn_upgrade, LV_FLEX_ALIGN_CENTER, 0, 0);
-    lv_obj_t * btn_label_upgrade = lv_label_create(btn_upgrade);
-    lv_label_set_text(btn_label_upgrade, "软件更新");
-    lv_obj_center(btn_label_upgrade);
-    lv_obj_add_event_cb(btn_upgrade, btn_upgrade_click, LV_EVENT_CLICKED, NULL);
-    
-    
+
     lv_obj_t * btn_debug = lv_btn_create(container);
     lv_obj_set_size(btn_debug, lv_pct(64), lv_pct(32));
     lv_obj_align(btn_debug, LV_FLEX_ALIGN_CENTER, 0, 0);
@@ -89,11 +99,12 @@ lv_obj_t * page_settings_main(void)
     lv_obj_center(btn_label_debug);
     lv_obj_add_event_cb(btn_debug, btn_debug_click, LV_EVENT_CLICKED, NULL);
 
+
     lv_obj_t * btn_about = lv_btn_create(container);
     lv_obj_set_size(btn_about, lv_pct(64), lv_pct(32));
     lv_obj_align(btn_about, LV_FLEX_ALIGN_START, lv_pct(10), 0);
     lv_obj_t * btn_label_about = lv_label_create(btn_about);
-    lv_label_set_text(btn_label_about, "关于 Dendro");
+    lv_label_set_text(btn_label_about, "关于Dendro");
     lv_obj_center(btn_label_about);
     lv_obj_add_event_cb(btn_about, btn_about_click, LV_EVENT_CLICKED, NULL);
 
@@ -110,13 +121,14 @@ lv_obj_t * page_settings_main(void)
 
 static void btn_demo_click(lv_event_t * e) // static可以防止同名冲突
 {
-    custom_toast_create("May all the beauty be blessed.\nMay all the dreams shine with their light.");
+    //custom_toast_create("May all the beauty be blessed.\nMay all the dreams shine with their light.");
+    custom_toast_create("人间烟火倒映湖中，她的渴望让静水泛起涟漪。\n若代价只是孤独，那就让这份愿望肆意流淌……\n流入她所注视的世间，也流入她如湖水般澄澈的目光。");
     //page_open(demo_page_create());
 }
 
 static void btn_about_click(lv_event_t * e)
 {
-    custom_msgbox_create("关于", "Dendro是一个有图形界面的简易多媒体工具，专为奇葩的Linux设备设计", NULL, true);
+    custom_msgbox_create("关于", "Dendro是一个有图形界面的简易多媒体工具，专为奇葩Linux设备设计", NULL, true);
 }
 
 static void btn_developer_click(lv_event_t * e)
@@ -135,7 +147,7 @@ static void slider_brightness_set(lv_event_t * e)
 {
     lv_obj_t * slider = lv_event_get_target(e);
     int value = lv_slider_get_value(slider);
-    config_write_int(MAIN_CONFIG_FILE, CFG_BRIGHTNESS, value);
+    config_write_int(CFG_FILE_MAIN, CFG_BRIGHTNESS, value);
 }
 
 static void slider_volume_changed(lv_event_t * e)
@@ -149,14 +161,13 @@ static void slider_volume_set(lv_event_t * e)
 {
     lv_obj_t * slider = lv_event_get_target(e);
     int value = lv_slider_get_value(slider);
-    config_write_int(MAIN_CONFIG_FILE, CFG_VOLUME, value);
+    config_write_int(CFG_FILE_MAIN, CFG_VOLUME, value);
 }
 
 static void btn_back_click(lv_event_t * e)
 {
     page_back();
 }
-
 static void btn_upgrade_click(lv_event_t * e)
 {
     page_open(page_upgrade_create("https://raw.giteeusercontent.com/testxiaoyi/demo_upgrade/raw/master/version.json"));
@@ -166,3 +177,9 @@ static void btn_debug_click(lv_event_t * e)
 {
     page_open(page_debug_create());
 }
+
+static void btn_wifi_click(lv_event_t *e) 
+{
+    page_open(page_wifi_create());
+}
+

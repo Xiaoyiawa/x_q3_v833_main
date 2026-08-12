@@ -9,7 +9,9 @@
 #include "page_ftp.h"
 #include "page_usb.h"
 #include "page_led.h"
+#include "page_ai.h"
 #include "page_settings_main.h"
+#include "page_wifi.h"
 #include "main.h"
 
 static void btn_back_click(lv_event_t * e);
@@ -23,6 +25,8 @@ static void btn_recorder_click(lv_event_t * e);
 static void btn_2048_click(lv_event_t * e);
 static void btn_upgrade_click(lv_event_t * e);
 static void btn_led_click(lv_event_t * e);
+static void btn_ai_click(lv_event_t * e);
+static void btn_wifi_click(lv_event_t * e);
 
 static void battery_timer_cb(lv_timer_t * timer);
 static void screen_delete_cb(lv_event_t * e);
@@ -116,6 +120,14 @@ lv_obj_t * page_menu(void)
     lv_obj_center(btn_label_led);
     lv_obj_add_event_cb(btn_led, btn_led_click, LV_EVENT_CLICKED, NULL);
 
+    lv_obj_t * btn_ai = lv_btn_create(container);
+    lv_obj_set_size(btn_ai, lv_pct(64), lv_pct(32));
+    lv_obj_align(btn_ai, LV_FLEX_ALIGN_CENTER, 0, 0);
+    lv_obj_t * btn_label_ai = lv_label_create(btn_ai);
+    lv_label_set_text(btn_label_ai, "AI");
+    lv_obj_center(btn_label_ai);
+    lv_obj_add_event_cb(btn_ai, btn_ai_click, LV_EVENT_CLICKED, NULL);
+
     if(access("/dev/by-name/sdcard", F_OK) == 0) {
         lv_obj_t * btn_usb = lv_btn_create(container);
         lv_obj_set_size(btn_usb, lv_pct(64), lv_pct(32));
@@ -187,6 +199,15 @@ static void btn_led_click(lv_event_t * e)
     page_open(page_led_create());
 }
 
+static void btn_ai_click(lv_event_t * e)
+{
+    page_open(page_ai_create());
+}
+
+static void btn_wifi_click(lv_event_t *e) 
+{
+    page_open(page_wifi_create());
+}
 
 static void battery_timer_cb(lv_timer_t * timer) {
     lv_obj_t * label = (lv_obj_t *)timer->user_data;
