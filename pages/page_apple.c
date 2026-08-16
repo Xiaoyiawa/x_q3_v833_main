@@ -33,7 +33,7 @@ BasePage * page_video_create(char * filename)
 
     page->base.obj        = page_video_obj(page, filename);
     page->base.on_destroy = page_video_destroy;
-    return (BasePage *)page;
+    return page;
 }
 
 static lv_obj_t * page_video_obj(VideoPage * page, char * filename)
@@ -186,7 +186,6 @@ static void timer_tick(lv_timer_t * e)
 
 static void back_click(lv_event_t * e)
 {
-    (void)e;
     page_back();
 }
 

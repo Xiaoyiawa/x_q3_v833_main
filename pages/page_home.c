@@ -3,7 +3,9 @@
 #include "platform/battery_manager.h"
 #include "page_menu.h"
 #include "main.h"
+#include "platform/sys_robot.h"
 #include "platform/str_utils.h"
+#include "platform/lv_utils.h"
 
 #define TEXT_CLOCK_COLOR 0xff8fc07c
 
@@ -128,7 +130,7 @@ static void timer_time_tick(lv_timer_t * e)
     lv_label_set_text(page->label_time, time_text);
 
     char date_text[24];
-    lv_snprintf(date_text, sizeof(date_text), "%02d-%02d  %s", tm->tm_mon + 1, tm->tm_mday, days_of_week[tm->tm_wday]);
+    lv_snprintf(date_text, sizeof(date_text), "%02d-%02d  %s", tm->tm_mon + 1, tm->tm_mday, DAYS_OF_WEEK[tm->tm_wday]);
     lv_label_set_text(page->label_date, date_text);
 }
 

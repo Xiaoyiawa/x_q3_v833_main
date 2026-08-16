@@ -1,5 +1,5 @@
 #include "network.h"
-#include "main.h"          /* 包含 fbd, dispd, powerd, homed 声明 */
+#include "hw_keys.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -582,11 +582,10 @@ static int do_connect(const char *ssid, const char *password, bool encrypted) {
 
     /* 异步获取 IP（后台运行 udhcpc，不阻塞） */
     pid_t pid = fork();
-    if (pid == 0) {
-        close(fbd);
-        close(dispd);
-        close(powerd);
-        close(homed);
+    if (pid == 0) {                 
+        lcd_close();
+        key_close_power();
+        key_close_home();
         close(0);
         close(1);
         close(2);
@@ -617,11 +616,10 @@ static int do_connect(const char *ssid, const char *password, bool encrypted) {
 
     /* 异步执行 ntpd 校准时间 */
     pid_t pid_ntp = fork();
-    if (pid_ntp == 0) {
-        close(fbd);
-        close(dispd);
-        close(powerd);
-        close(homed);
+    if (pid_ntp == 0) {           
+        lcd_close();
+        key_close_power();
+        key_close_home();
         close(0);
         close(1);
         close(2);
@@ -632,7 +630,6 @@ static int do_connect(const char *ssid, const char *password, bool encrypted) {
         printf("[Network] NTPD started in background (pid=%d)\n", pid_ntp);
         fflush(stdout);
     }
-
     return 0;
 }
 

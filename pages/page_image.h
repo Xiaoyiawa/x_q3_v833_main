@@ -11,7 +11,7 @@ extern "C" {
 #include "../lvgl/lvgl.h"
 #include "../lv_lib_100ask/lv_lib_100ask.h"
 #include "lv_drv_conf.h"
-#include "platform/page_manager.h"
+#include "page_manager.h"
 #include <math.h>
 
 /*********************

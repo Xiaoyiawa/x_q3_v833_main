@@ -1,5 +1,6 @@
 #include "page_ai.h"
 #include "../cJSON/cJSON.h"
+#include "views/ime_helper.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -18,16 +19,12 @@
 #define INPUT_W         200
 #define SEND_W          40
 #define GAP             2
-#define KB_H            110
 
-#define BOT_Y_NORMAL    (SCREEN_H - BOT_BAR_H)
-#define KB_Y            (SCREEN_H - KB_H)
-#define BOT_Y_KB        (KB_Y - BOT_BAR_H - 6)
 #define CHAT_Y          (TOP_BAR_H)
-#define CHAT_H_NORMAL   (BOT_Y_NORMAL - CHAT_Y)
-#define CHAT_H_KB       (BOT_Y_KB - CHAT_Y)
+#define CHAT_H_NORMAL   (SCREEN_H - TOP_BAR_H - BOT_BAR_H)
 
-#define CURL_BUFFER_SIZE  (1024 * 1024)
+#define CURL_BUFFER_SIZE (4 * 1024 * 1024)
+#define MAX_AI_BUFFER_SIZE (4 * 1024 * 1024)
 
 /* ==================== 配置项 ==================== */
 typedef struct {
@@ -66,14 +63,11 @@ typedef struct {
     lv_obj_t *chat_container;
     lv_obj_t *input;
     lv_obj_t *send_btn;
-    lv_obj_t *kb_overlay;
-    lv_obj_t *kb;
     lv_obj_t *dropdown;
     bool waiting;
-    bool kb_visible;
     bool ai_streaming;
     lv_obj_t *ai_label;
-    char *ai_accumulated;
+    char *ai_accumulated;     // 预分配 4MB
 } AIPage;
 
 static AIPage *g_page = NULL;
@@ -93,12 +87,8 @@ static int g_async_pending = 0;
 /* ==================== 函数声明 ==================== */
 static void back_cb(lv_event_t *e);
 static void send_cb(lv_event_t *e);
-static void input_focus_cb(lv_event_t *e);
-static void overlay_click_cb(lv_event_t *e);
 static void dropdown_cb(lv_event_t *e);
 static void scroll_bottom(void);
-static void show_kb(void);
-static void hide_kb(void);
 static void set_waiting(bool w);
 static void *api_thread(void *arg);
 static void on_api_response_ui_cb(void *data);
@@ -234,7 +224,6 @@ static void load_config_by_index(int idx) {
     printf("[AI] Loaded config: %s (model=%s, url=%s)\n", ci->name, g_model, g_api_url);
 }
 
-/* 修正：正确计算包含 "(invalid)" 后缀的缓冲区大小 */
 static char* build_dropdown_options(void) {
     if (g_config_count == 0) {
         return strdup("No configs");
@@ -242,20 +231,16 @@ static char* build_dropdown_options(void) {
     size_t total = 0;
     for (int i = 0; i < g_config_count; i++) {
         total += strlen(g_configs[i].name);
-        if (!g_configs[i].valid) {
-            total += strlen(" (invalid)");  // 10 个字符
-        }
-        total += 1; // 换行符
+        if (!g_configs[i].valid) total += strlen(" (invalid)");
+        total += 1; // newline
     }
-    char *opts = malloc(total + 1); // +1 for null
+    char *opts = malloc(total + 1);
     if (!opts) return NULL;
     opts[0] = '\0';
     for (int i = 0; i < g_config_count; i++) {
         if (i > 0) strcat(opts, "\n");
         strcat(opts, g_configs[i].name);
-        if (!g_configs[i].valid) {
-            strcat(opts, " (invalid)");
-        }
+        if (!g_configs[i].valid) strcat(opts, " (invalid)");
     }
     return opts;
 }
@@ -323,7 +308,7 @@ BasePage *page_ai_create(void) {
     }
     lv_obj_add_event_cb(page->dropdown, dropdown_cb, LV_EVENT_VALUE_CHANGED, NULL);
 
-    /* 聊天容器 */
+    /* 聊天容器（固定高度） */
     page->chat_container = lv_obj_create(scr);
     lv_obj_set_pos(page->chat_container, 0, CHAT_Y);
     lv_obj_set_width(page->chat_container, lv_pct(100));
@@ -334,21 +319,10 @@ BasePage *page_ai_create(void) {
     lv_obj_set_flex_flow(page->chat_container, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_scrollbar_mode(page->chat_container, LV_SCROLLBAR_MODE_AUTO);
 
-    /* 键盘覆盖层 */
-    page->kb_overlay = lv_obj_create(scr);
-    lv_obj_set_size(page->kb_overlay, SCREEN_W, SCREEN_H);
-    lv_obj_set_pos(page->kb_overlay, 0, 0);
-    lv_obj_set_style_bg_opa(page->kb_overlay, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_width(page->kb_overlay, 0, 0);
-    lv_obj_clear_flag(page->kb_overlay, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_add_flag(page->kb_overlay, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_flag(page->kb_overlay, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_event_cb(page->kb_overlay, overlay_click_cb, LV_EVENT_CLICKED, NULL);
-
     /* 发送按钮 */
     page->send_btn = lv_btn_create(scr);
     lv_obj_set_size(page->send_btn, SEND_W, BOT_BAR_H);
-    lv_obj_set_pos(page->send_btn, SCREEN_W - SEND_W, BOT_Y_NORMAL);
+    lv_obj_set_pos(page->send_btn, SCREEN_W - SEND_W, SCREEN_H - BOT_BAR_H);
     lv_obj_set_style_pad_all(page->send_btn, 0, 0);
     lv_obj_set_style_border_width(page->send_btn, 0, 0);
     lv_obj_t *lbl_send = lv_label_create(page->send_btn);
@@ -356,9 +330,9 @@ BasePage *page_ai_create(void) {
     lv_obj_center(lbl_send);
     lv_obj_add_event_cb(page->send_btn, send_cb, LV_EVENT_CLICKED, NULL);
 
-    /* 输入框 */
+    /* 输入框（绑定中文输入法） */
     page->input = lv_textarea_create(scr);
-    lv_obj_set_pos(page->input, 0, BOT_Y_NORMAL);
+    lv_obj_set_pos(page->input, 0, SCREEN_H - BOT_BAR_H);
     lv_obj_set_size(page->input, INPUT_W, BOT_BAR_H);
     lv_obj_set_style_pad_ver(page->input, 0, 0);
     lv_obj_set_style_pad_hor(page->input, 4, 0);
@@ -368,14 +342,11 @@ BasePage *page_ai_create(void) {
     lv_obj_set_style_max_height(page->input, BOT_BAR_H, 0);
     lv_textarea_set_placeholder_text(page->input, "Ask something...");
     lv_textarea_set_one_line(page->input, true);
-    lv_obj_add_event_cb(page->input, input_focus_cb, LV_EVENT_CLICKED, NULL);
-    lv_obj_add_event_cb(page->input, input_focus_cb, LV_EVENT_FOCUSED, NULL);
 
-    /* 键盘 */
-    page->kb = lv_keyboard_create(scr);
-    lv_keyboard_set_textarea(page->kb, page->input);
-    lv_obj_add_flag(page->kb, LV_OBJ_FLAG_HIDDEN);
+    // 绑定中文输入法
+    lv_textarea_bind_ime(page->input);
 
+    /* 显示无效配置警告 */
     for (int i = 0; i < g_config_count; i++) {
         if (!g_configs[i].valid) {
             char warn[128];
@@ -421,17 +392,6 @@ static void dropdown_cb(lv_event_t *e) {
     scroll_bottom();
 }
 
-static void input_focus_cb(lv_event_t *e) {
-    (void)e;
-    show_kb();
-}
-
-static void overlay_click_cb(lv_event_t *e) {
-    (void)e;
-    hide_kb();
-}
-
-/* 关键修复：在调用 set_text 之前复制用户输入 */
 static void send_cb(lv_event_t *e) {
     (void)e;
     if (g_page->waiting || !g_page->input) return;
@@ -504,7 +464,13 @@ static void add_ai_message_start(void) {
     lv_obj_set_style_pad_ver(g_page->ai_label, 2, 0);
     lv_label_set_text(g_page->ai_label, "AI: ");
     free(g_page->ai_accumulated);
-    g_page->ai_accumulated = strdup("AI: ");
+    g_page->ai_accumulated = malloc(MAX_AI_BUFFER_SIZE);
+    if (g_page->ai_accumulated) {
+        g_page->ai_accumulated[0] = '\0';
+        strcpy(g_page->ai_accumulated, "AI: ");
+    } else {
+        g_page->ai_accumulated = strdup("AI: ");
+    }
     g_page->ai_streaming = true;
 }
 
@@ -516,7 +482,7 @@ static void update_ai_message(const char *full_text) {
 
 static void finish_ai_message(void) {
     if (!g_page) return;
-    process_queue();
+    process_queue();  // 确保所有队列处理完毕
     if (g_page->ai_accumulated) {
         update_ai_message(g_page->ai_accumulated);
     }
@@ -578,13 +544,13 @@ static void process_queue(void) {
     while (node) {
         if (node->data) {
             if (g_page && g_page->ai_accumulated) {
-                size_t old_len = strlen(g_page->ai_accumulated);
+                size_t current_len = strlen(g_page->ai_accumulated);
                 size_t add_len = strlen(node->data);
-                char *tmp = realloc(g_page->ai_accumulated, old_len + add_len + 1);
-                if (tmp) {
-                    g_page->ai_accumulated = tmp;
-                    memcpy(g_page->ai_accumulated + old_len, node->data, add_len + 1);
+                if (current_len + add_len < MAX_AI_BUFFER_SIZE) {
+                    memcpy(g_page->ai_accumulated + current_len, node->data, add_len + 1);
                     update_ai_message(g_page->ai_accumulated);
+                } else {
+                    printf("[AI] Warning: AI buffer overflow, discarding chunk\n");
                 }
             }
             printf("[AI] Chunk: %s\n", node->data);
@@ -596,7 +562,7 @@ static void process_queue(void) {
     }
 }
 
-/* ==================== curl 回调 ==================== */
+/* ==================== curl 回调（动态扩容，初始 4MB） ==================== */
 static size_t curl_write_cb(void *ptr, size_t size, size_t nmemb, void *userdata) {
     size_t total = size * nmemb;
     char *data = (char*)ptr;
@@ -604,6 +570,7 @@ static size_t curl_write_cb(void *ptr, size_t size, size_t nmemb, void *userdata
     static size_t buf_len = 0;
     static size_t buf_cap = 0;
 
+    // 初始化缓冲区（4MB）
     if (!buffer) {
         buffer = malloc(CURL_BUFFER_SIZE);
         if (!buffer) return 0;
@@ -611,27 +578,28 @@ static size_t curl_write_cb(void *ptr, size_t size, size_t nmemb, void *userdata
         buf_len = 0;
     }
 
+    // 扩容
     if (buf_len + total > buf_cap) {
         size_t new_cap = buf_cap * 2;
         if (new_cap < buf_len + total) new_cap = buf_len + total + 4096;
         char *new_buf = realloc(buffer, new_cap);
         if (!new_buf) {
-            free(buffer);
-            buffer = NULL;
-            buf_len = 0;
-            buf_cap = 0;
+            printf("[AI] curl buffer realloc failed, dropping data\n");
             return total;
         }
         buffer = new_buf;
         buf_cap = new_cap;
     }
 
+    // 追加新数据
     memcpy(buffer + buf_len, data, total);
     buf_len += total;
     buffer[buf_len] = '\0';
 
     char *line_start = buffer;
     char *line_end;
+
+    // 主解析循环：按 \n\n 分隔
     while ((line_end = strstr(line_start, "\n\n")) != NULL) {
         *line_end = '\0';
         char *sse_line = line_start;
@@ -640,9 +608,49 @@ static size_t curl_write_cb(void *ptr, size_t size, size_t nmemb, void *userdata
             if (strncmp(sse_line, "data: ", 6) == 0) {
                 const char *json_str = sse_line + 6;
                 if (strcmp(json_str, "[DONE]") == 0) {
-                    printf("[AI] Received [DONE], stream ending\n");
+                    printf("[AI] Received [DONE], processing remaining data\n");
+                    // 处理缓冲区中剩余的所有数据（按行分割）
+                    char *rem = line_end + 2;
+                    while (rem < buffer + buf_len) {
+                        char *next = strchr(rem, '\n');
+                        if (next) *next = '\0';
+                        char *sse_line2 = rem;
+                        while (*sse_line2 == '\n' || *sse_line2 == '\r') sse_line2++;
+                        if (*sse_line2 != '\0' && strncmp(sse_line2, "data: ", 6) == 0) {
+                            const char *json_str2 = sse_line2 + 6;
+                            if (strcmp(json_str2, "[DONE]") != 0) {
+                                cJSON *root = cJSON_Parse(json_str2);
+                                if (root) {
+                                    cJSON *choices = cJSON_GetObjectItem(root, "choices");
+                                    if (cJSON_IsArray(choices) && cJSON_GetArraySize(choices) > 0) {
+                                        cJSON *first = cJSON_GetArrayItem(choices, 0);
+                                        cJSON *delta = cJSON_GetObjectItem(first, "delta");
+                                        cJSON *content = cJSON_GetObjectItem(delta, "content");
+                                        if (cJSON_IsString(content) && content->valuestring) {
+                                            char *chunk = strdup(content->valuestring);
+                                            printf("[AI] Final chunk: %s\n", chunk);
+                                            enqueue_chunk(chunk);
+                                            free(chunk);
+                                        }
+                                    }
+                                    cJSON_Delete(root);
+                                }
+                            }
+                        }
+                        if (next) {
+                            rem = next + 1;
+                        } else {
+                            break;
+                        }
+                    }
+                    // 清空缓冲区
+                    buf_len = 0;
+                    buffer[0] = '\0';
+                    // 直接调用 finish_ai_message（会触发 process_queue 显示全部内容）
                     lv_async_call((lv_async_cb_t)finish_ai_message, NULL);
+                    return total;
                 } else {
+                    // 普通 chunk
                     cJSON *root = cJSON_Parse(json_str);
                     if (root) {
                         cJSON *choices = cJSON_GetObjectItem(root, "choices");
@@ -670,6 +678,7 @@ static size_t curl_write_cb(void *ptr, size_t size, size_t nmemb, void *userdata
         if (line_start >= buffer + buf_len) break;
     }
 
+    // 保留剩余未处理的数据到下次调用
     if (line_start < buffer + buf_len) {
         memmove(buffer, line_start, buffer + buf_len - line_start);
         buf_len = buffer + buf_len - line_start;
@@ -677,6 +686,7 @@ static size_t curl_write_cb(void *ptr, size_t size, size_t nmemb, void *userdata
         buf_len = 0;
     }
     buffer[buf_len] = '\0';
+
     return total;
 }
 
@@ -794,38 +804,7 @@ static void scroll_bottom(void) {
     lv_obj_scroll_to_y(g_page->chat_container, LV_COORD_MAX, LV_ANIM_OFF);
 }
 
-/* ==================== 键盘控制 ==================== */
-static void show_kb(void) {
-    if (g_page->kb_visible) return;
-    g_page->kb_visible = true;
-
-    lv_obj_clear_flag(g_page->kb, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_clear_flag(g_page->kb_overlay, LV_OBJ_FLAG_HIDDEN);
-
-    lv_obj_move_foreground(g_page->kb_overlay);
-    lv_obj_move_foreground(g_page->input);
-    lv_obj_move_foreground(g_page->kb);
-
-    lv_obj_set_pos(g_page->input, 0, BOT_Y_KB);
-    lv_obj_set_pos(g_page->send_btn, SCREEN_W - SEND_W, BOT_Y_KB);
-    lv_obj_set_height(g_page->chat_container, CHAT_H_KB);
-    scroll_bottom();
-}
-
-static void hide_kb(void) {
-    if (!g_page->kb_visible) return;
-    g_page->kb_visible = false;
-
-    lv_obj_add_flag(g_page->kb, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(g_page->kb_overlay, LV_OBJ_FLAG_HIDDEN);
-
-    lv_obj_set_pos(g_page->input, 0, BOT_Y_NORMAL);
-    lv_obj_set_pos(g_page->send_btn, SCREEN_W - SEND_W, BOT_Y_NORMAL);
-    lv_obj_set_height(g_page->chat_container, CHAT_H_NORMAL);
-    lv_obj_clear_state(g_page->input, LV_STATE_FOCUSED);
-    scroll_bottom();
-}
-
+/* ==================== 设置等待状态 ==================== */
 static void set_waiting(bool w) {
     if (g_page) g_page->waiting = w;
     if (w) printf("[AI] Waiting for response...\n");

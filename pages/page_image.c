@@ -1,5 +1,4 @@
 #include "page_image.h"
-#include <errno.h>
 
 typedef struct
 {
@@ -43,51 +42,30 @@ static lv_obj_t * page_image_obj(ImagePage * page, char * src)
     lv_obj_set_size(screen, lv_pct(100), lv_pct(100));
     lv_obj_clear_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
 
-    // 尝试获取图片头信息
-    int ret = ffmpeg_get_img_header(src, &page->header);
-    bool header_ok = (ret == 0 && page->header.w > 0 && page->header.h > 0);
-
-    // 如果获取失败，显示错误界面
-    if (!header_ok) {
-        // 显示错误信息，包含 errno 描述
-        lv_obj_t * error_label = lv_label_create(screen);
-        lv_label_set_text_fmt(error_label, "无法打开此文件\n%s", strerror(errno));
-        lv_obj_align(error_label, LV_ALIGN_CENTER, 0, 0);
-        lv_obj_set_style_text_align(error_label, LV_TEXT_ALIGN_CENTER, 0);
-
-        // 返回按钮（必须存在，允许用户退出）
-        lv_obj_t * btn_back = lv_btn_create(screen);
-        lv_obj_set_size(btn_back, lv_pct(25), lv_pct(12));
-        lv_obj_align(btn_back, LV_ALIGN_BOTTOM_LEFT, 0, 0);
-        lv_obj_t * btn_back_label = lv_label_create(btn_back);
-        lv_label_set_text(btn_back_label, CUSTOM_SYMBOL_BACK "");
-        lv_obj_center(btn_back_label);
-        lv_obj_add_event_cb(btn_back, back_click, LV_EVENT_CLICKED, NULL);
-
-        return screen;   // 直接返回，不创建其他控件
-    }
-
-    // ---- 正常创建图片显示界面 ----
     page->touching  = false;
     page->ui_hidden = false;
+
+    ffmpeg_get_img_header(src, &page->header);
 
     lv_obj_t * img = lv_img_create(screen);
     page->img      = img;
     lv_obj_set_size(img, page->header.w, page->header.h);
     lv_obj_center(img);
-    lv_img_set_src(img, src);
+    if(page->header.w != 0 && page->header.h != 0) {
+        lv_img_set_src(img, src);
 
-    double scale_default = fmin((double)LV_SCR_WIDTH / page->header.w, (double)LV_SCR_HEIGHT / page->header.h);
-    page->scale_default  = scale_default;
+        double scale_default = fmin((double)LV_SCR_WIDTH / page->header.w, (double)LV_SCR_HEIGHT / page->header.h);
+        page->scale_default  = scale_default;
 
-    lv_coord_t img_scaled_w = (lv_coord_t)(page->header.w * scale_default);
-    lv_coord_t img_scaled_h = (lv_coord_t)(page->header.h * scale_default);
+        lv_coord_t img_scaled_w = (lv_coord_t)(page->header.w * scale_default);
+        lv_coord_t img_scaled_h = (lv_coord_t)(page->header.h * scale_default);
 
-    page->bound_x = fmax(0, (img_scaled_w - LV_SCR_WIDTH) / 2);
-    page->bound_y = fmax(0, (img_scaled_h - LV_SCR_HEIGHT) / 2);
+        page->bound_x = fmax(0, (img_scaled_w - LV_SCR_WIDTH) / 2);
+        page->bound_y = fmax(0, (img_scaled_h - LV_SCR_HEIGHT) / 2);
 
-    lv_obj_set_style_transform_zoom(img, (lv_coord_t)(256 * scale_default), 0);
-    LV_LOG_USER("[page_image]%dx%d, scale=%.8g\n", page->header.w, page->header.h, scale_default);
+        lv_obj_set_style_transform_zoom(img, (lv_coord_t)(256 * scale_default), 0);
+        LV_LOG_USER("[page_image] %dx%d, scale=%.8g\n", page->header.w, page->header.h, scale_default);
+    }
 
     lv_obj_t * touch_area = lv_obj_create(screen);
     page->touch_area      = touch_area;
@@ -153,6 +131,7 @@ static void touch_pressing(lv_event_t * e)
     ImagePage * page = (ImagePage *)e->user_data;
     if(!page) return;
 
+    // 这些在函数中不需要进行修改，可以直接一次性拉出来
     lv_obj_t * img          = page->img;
     lv_coord_t bound_x      = page->bound_x;
     lv_coord_t bound_y      = page->bound_y;

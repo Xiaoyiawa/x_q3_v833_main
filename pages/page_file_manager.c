@@ -3,12 +3,14 @@
 #include <stdio.h>
 #include <sys/stat.h>
 #include <stdbool.h>
+#include "page_selector.h"
 #include "page_apple.h"
 #include "page_audio.h"
 #include "page_midi.h"
 #include "page_image.h"
 #include "page_txt.h"
 #include "platform/str_utils.h"
+#include "platform/hw_keys.h"
 #include "views/custom_msgbox.h"
 
 typedef enum { FILE_OPERATION_NONE = 0, FILE_OPERATION_CUT, FILE_OPERATION_COPY } file_operation_t;
@@ -24,7 +26,7 @@ typedef struct
     file_operation_t file_operation;
 } FileManagerPage;
 
-static const char * btn_txts[] = {"YES", "NO", NULL};
+static const char * btn_txts[] = {"是", "否", NULL};
 
 static lv_obj_t * page_file_manager_obj(FileManagerPage * page);
 static bool is_blacklisted(const char * path);
@@ -37,6 +39,7 @@ static void act_paste_click(lv_event_t * e);
 static void act_delete_click(lv_event_t * e);
 static void act_msgbox_delete(lv_event_t * e);
 static void act_msgbox_paste(lv_event_t * e);
+static void act_open_with_click(lv_event_t * e);
 static bool page_file_manager_on_key(void * p, key_code_t key_code, key_action_t key_action);
 
 static bool is_blacklisted(const char * path)
@@ -171,10 +174,17 @@ lv_obj_t * page_file_manager_obj(FileManagerPage * page)
     lv_obj_set_width(label_file_name, lv_pct(100));
     page->label_file_name = label_file_name;
 
+    lv_obj_t * btn_open_with = lv_btn_create(list_act);
+    lv_obj_set_size(btn_open_with, lv_pct(100), lv_pct(22));
+    lv_obj_t * btn_label_open_with = lv_label_create(btn_open_with);
+    lv_label_set_text(btn_label_open_with, "打开方式");
+    lv_obj_center(btn_label_open_with);
+    lv_obj_add_event_cb(btn_open_with, act_open_with_click, LV_EVENT_CLICKED, page);
+
     lv_obj_t * btn_cut = lv_btn_create(list_act);
     lv_obj_set_size(btn_cut, lv_pct(100), lv_pct(22));
     lv_obj_t * btn_label_cut = lv_label_create(btn_cut);
-    lv_label_set_text(btn_label_cut, "剪贴");
+    lv_label_set_text(btn_label_cut, "剪切");
     lv_obj_center(btn_label_cut);
     lv_obj_add_event_cb(btn_cut, act_cut_click, LV_EVENT_CLICKED, page);
 
@@ -219,33 +229,18 @@ static void explorer_event_handler(lv_event_t * e)
     if(code == LV_EVENT_CLICKED) {
         printf("[file_manager] clicked %s\n", file_name);
 
-        if(str_end_with(file_name, ".png", false) || str_end_with(file_name, ".jpg", false) ||
-            str_end_with(file_name, ".jpeg", false) || str_end_with(file_name, ".bmp", false) ||
-            str_end_with(file_name, ".gif", false)) 
-            {
-                page_open(page_image_create(file_name));
-            }
-
-        if(str_end_with(file_name, ".mp3", false) || str_end_with(file_name, ".wav", false) ||
-            str_end_with(file_name, ".ogg", false) || str_end_with(file_name, ".m4a", false) ||
-            str_end_with(file_name, ".aac", false) || str_end_with(file_name, ".pcm", false))
-            {
-                page_open(page_audio_create(file_name));
-            }
-            
-        if(str_end_with(file_name, ".mp4", false) || str_end_with(file_name, ".avi", false)) {
+        if(file_ext_match(file_name, IMAGE_FILE_EXT)) {
+            page_open(page_image_create(file_name));
+        } else if(file_ext_match(file_name, AUDIO_FILE_EXT)) {
+            page_open(page_audio_create(file_name));
+        } else if(file_ext_match(file_name, VIDEO_FILE_EXT)) {
             page_open(page_video_create(file_name));
-        }
-
-        if(str_end_with(file_name, ".mid", false) || str_end_with(file_name, ".midi", false)) {
+        } else if(file_ext_match(file_name, MIDI_FILE_EXT)) {
             page_open(page_midi_create(file_name));
-        }
-
-        if(str_end_with(file_name, ".txt", false) || str_end_with(file_name, ".json", false) || 
-            str_end_with(file_name, ".conf", false) || str_end_with(file_name, ".log", false) ||
-            str_end_with(file_name, ".cfg", false) || str_end_with(file_name, ".sh", false)) {
+        } else if(file_ext_match(file_name, TEXT_FILE_EXT)) {
             page_open(page_txt_create(file_name));
-        }   
+        }
+        
     }
 
     if(code == LV_EVENT_LONG_PRESSED) {
@@ -260,14 +255,14 @@ static void act_cut_click(lv_event_t * e)
     FileManagerPage * page = (FileManagerPage *)e->user_data;
 
     if(!is_file_safe(page->file_current)) {
-        custom_toast_create("不允许的操作! ");
+        custom_toast_create("不允许的操作!");
         return;
     }
 
     strcpy(page->file_clipboard, page->file_current);
     page->file_operation = FILE_OPERATION_CUT;
     lv_obj_add_flag(page->container_act, LV_OBJ_FLAG_HIDDEN);
-    custom_toast_create("已剪贴");
+    custom_toast_create("已剪切");
 }
 
 static void act_copy_click(lv_event_t * e)
@@ -284,12 +279,12 @@ static void act_paste_click(lv_event_t * e)
     FileManagerPage * page = (FileManagerPage *)e->user_data;
 
     if(!is_directory(page->file_current)) {
-        custom_toast_create("请选择一个文件夹来粘贴");
+        custom_toast_create("请长按目录以粘贴");
         return;
     }
 
     if(!is_directory_safe(page->file_current)) {
-        custom_toast_create("不允许的操作! ");
+        custom_toast_create(" 不允许的操作！");
         return;
     }
 
@@ -297,13 +292,13 @@ static void act_paste_click(lv_event_t * e)
     switch (page->file_operation)
     {
     case FILE_OPERATION_CUT:
-        mbox = custom_msgbox_create("移动文件:", 
+        mbox = custom_msgbox_create("移动", 
                 page->file_clipboard,
                 btn_txts, false);
         break;
         
     case FILE_OPERATION_COPY:
-        mbox = custom_msgbox_create("复制文件:", 
+        mbox = custom_msgbox_create("复制", 
                 page->file_clipboard,
                 btn_txts, false);
         break;
@@ -320,10 +315,10 @@ static void act_delete_click(lv_event_t * e)
 {
     FileManagerPage * page = (FileManagerPage *)e->user_data;
     if(!is_file_safe(page->file_current)) {
-        custom_toast_create("不允许的操作!");
+        custom_toast_create(" 不允许的操作！");
         return;
     }
-    lv_obj_t * mbox = custom_msgbox_create("要删除文件吗？", 
+    lv_obj_t * mbox = custom_msgbox_create("删除", 
                 lv_100ask_file_explorer_get_sel_fn(page->file_explorer),
                 btn_txts, false);
     lv_obj_add_event_cb(mbox, act_msgbox_delete, LV_EVENT_VALUE_CHANGED, page);
@@ -336,7 +331,7 @@ static void act_msgbox_delete(lv_event_t * e)
     lv_obj_t * msgbox = lv_obj_get_parent(lv_event_get_target(e));
     char * txt = lv_msgbox_get_active_btn_text(msgbox);
 
-    if(strcmp(txt, "YES") == 0) {
+    if(strcmp(txt, "是") == 0) {
         char * file_name = &page->file_current[0];
         int cmd_length   = 10 + strlen(file_name);
         char * cmd       = malloc(cmd_length);
@@ -344,9 +339,7 @@ static void act_msgbox_delete(lv_event_t * e)
         lv_snprintf(cmd, cmd_length, "rm -rf \"%s\"", file_name);
 
         printf("[file_manager] %s\n", cmd);
-        char toast_msg[512];
-        lv_snprintf(toast_msg, sizeof(toast_msg), "已删除 %s", file_name);
-        custom_toast_create(toast_msg);
+        custom_toast_create("已删除");
         system(cmd);
         free(cmd);
 
@@ -363,7 +356,7 @@ static void act_msgbox_paste(lv_event_t * e)
     lv_obj_t * msgbox = lv_obj_get_parent(lv_event_get_target(e));
     char * txt = lv_msgbox_get_active_btn_text(msgbox);
 
-    if (strcmp(txt, "YES") == 0) {
+    if (strcmp(txt, "是") == 0) {
         char * file_current   = &page->file_current[0];
         char * file_clipboard = &page->file_clipboard[0];
 
@@ -381,13 +374,13 @@ static void act_msgbox_paste(lv_event_t * e)
                 cmd_length = 15 + strlen(file_clipboard) + strlen(file_current);
                 cmd        = malloc(cmd_length);
                 if(cmd == NULL) { perror("malloc"); exit(EXIT_FAILURE); }
-                lv_snprintf(cmd, cmd_length, "cp -rf \"%s\" \"%s\"", file_clipboard, file_current);
+                lv_snprintf(cmd, cmd_length, "cp -r -f \"%s\" \"%s\"", file_clipboard, file_current);
                 break;
-            default: custom_toast_create("未知的操作!"); return;
+            default: custom_toast_create(" 未知操作！"); return;
         }
 
         printf("[file_manager] %s\n", cmd);
-        custom_toast_create(cmd);
+        custom_toast_create("已粘贴");
         system(cmd);
         free(cmd);
 
@@ -399,6 +392,12 @@ static void act_msgbox_paste(lv_event_t * e)
     else {
         lv_msgbox_close_async(msgbox);
     }
+}
+
+static void act_open_with_click(lv_event_t * e)
+{
+    FileManagerPage * page = (FileManagerPage *)e->user_data;
+    page_open(page_selector_create(page->file_current));
 }
 
 static void back_click(lv_event_t * e)

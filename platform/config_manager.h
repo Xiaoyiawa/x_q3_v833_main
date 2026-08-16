@@ -6,7 +6,7 @@
 #include <stdbool.h>
 
 
-#define CFG_FILE_MAIN "/mnt/UDISK/lvgl/setting/config.json"
+#define CFG_FILE_MAIN "/mnt/UDISK/lvgl/config.json"
 
 #define CFG_SETUP "/dendro/setup"
 #define CFG_TIMIDITY_CFG "/midi/timidity_cfg"

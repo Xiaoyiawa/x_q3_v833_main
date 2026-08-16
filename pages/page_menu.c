@@ -4,35 +4,35 @@
 #include "page_file_manager.h"
 #include "page_bird.h"
 #include "page_calculator.h"
-#include "page_recorder.h"
-#include "page_2048.h"
+#include "page_demo.h"
 #include "page_ftp.h"
-#include "page_usb.h"
-#include "page_led.h"
-#include "page_ai.h"
 #include "page_settings_main.h"
-#include "page_wifi.h"
+#include "page_2048.h"
+#include "page_recorder.h"
+#include "page_ai.h"
+#include "page_led.h"
 #include "main.h"
 
+static void btn_demo_click(lv_event_t * e);
 static void btn_back_click(lv_event_t * e);
 static void btn_file_manager_click(lv_event_t * e);
 static void btn_calculator_click(lv_event_t * e);
 static void btn_bird_click(lv_event_t * e);
-static void btn_ftp_click(lv_event_t * e);
-static void btn_usb_click(lv_event_t * e);
-static void btn_settings_click(lv_event_t * e);
-static void btn_recorder_click(lv_event_t * e);
 static void btn_2048_click(lv_event_t * e);
+static void btn_ftp_click(lv_event_t * e);
+static void btn_settings_click(lv_event_t * e);
+static void btn_demo_click(lv_event_t * e);
 static void btn_upgrade_click(lv_event_t * e);
+static void btn_recorder_click(lv_event_t * e);
 static void btn_led_click(lv_event_t * e);
 static void btn_ai_click(lv_event_t * e);
-static void btn_wifi_click(lv_event_t * e);
 
 static void battery_timer_cb(lv_timer_t * timer);
 static void screen_delete_cb(lv_event_t * e);
 
 lv_obj_t * page_menu(void)
 {
+
     lv_obj_t * screen = lv_obj_create(lv_scr_act());
     lv_obj_set_size(screen, lv_pct(100), lv_pct(100));
     lv_obj_clear_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
@@ -88,6 +88,14 @@ lv_obj_t * page_menu(void)
     lv_obj_center(btn_label_bird);
     lv_obj_add_event_cb(btn_bird, btn_bird_click, LV_EVENT_CLICKED, NULL);
 
+    lv_obj_t * btn_2048 = lv_btn_create(container);
+    lv_obj_set_size(btn_2048, lv_pct(64), lv_pct(32));
+    lv_obj_align(btn_2048, LV_FLEX_ALIGN_CENTER, 0, 0);
+    lv_obj_t * btn_label_2048 = lv_label_create(btn_2048);
+    lv_label_set_text(btn_label_2048, "2048");
+    lv_obj_center(btn_label_2048);
+    lv_obj_add_event_cb(btn_2048, btn_2048_click, LV_EVENT_CLICKED, NULL);
+
     lv_obj_t * btn_ftp = lv_btn_create(container);
     lv_obj_set_size(btn_ftp, lv_pct(64), lv_pct(32));
     lv_obj_align(btn_ftp, LV_FLEX_ALIGN_CENTER, 0, 0);
@@ -95,14 +103,6 @@ lv_obj_t * page_menu(void)
     lv_label_set_text(btn_label_ftp, "FTP");
     lv_obj_center(btn_label_ftp);
     lv_obj_add_event_cb(btn_ftp, btn_ftp_click, LV_EVENT_CLICKED, NULL);
-
-   lv_obj_t * btn_2048 = lv_btn_create(container);
-    lv_obj_set_size(btn_2048, lv_pct(64), lv_pct(32));
-    lv_obj_align(btn_2048, LV_FLEX_ALIGN_CENTER, 0, 0);
-    lv_obj_t * btn_label_2048 = lv_label_create(btn_2048);
-    lv_label_set_text(btn_label_2048, "2048");
-    lv_obj_center(btn_label_2048);
-    lv_obj_add_event_cb(btn_2048, btn_2048_click, LV_EVENT_CLICKED, NULL);
 
     lv_obj_t * btn_recorder = lv_btn_create(container);
     lv_obj_set_size(btn_recorder, lv_pct(64), lv_pct(32));
@@ -128,16 +128,6 @@ lv_obj_t * page_menu(void)
     lv_obj_center(btn_label_ai);
     lv_obj_add_event_cb(btn_ai, btn_ai_click, LV_EVENT_CLICKED, NULL);
 
-    if(access("/dev/by-name/sdcard", F_OK) == 0) {
-        lv_obj_t * btn_usb = lv_btn_create(container);
-        lv_obj_set_size(btn_usb, lv_pct(64), lv_pct(32));
-        lv_obj_align(btn_usb, LV_FLEX_ALIGN_CENTER, 0, 0);
-        lv_obj_t * btn_label_usb = lv_label_create(btn_usb);
-        lv_label_set_text(btn_label_usb, "USB");
-        lv_obj_center(btn_label_usb);
-        lv_obj_add_event_cb(btn_usb, btn_usb_click, LV_EVENT_CLICKED, NULL);
-    }
-
     lv_obj_t * btn_settings = lv_btn_create(container);
     lv_obj_set_size(btn_settings, lv_pct(64), lv_pct(32));
     lv_obj_align(btn_settings, LV_FLEX_ALIGN_CENTER, 0, 0);
@@ -146,6 +136,14 @@ lv_obj_t * page_menu(void)
     lv_obj_center(btn_label_settings);
     lv_obj_add_event_cb(btn_settings, btn_settings_click, LV_EVENT_CLICKED, NULL);
 
+    lv_obj_t * btn_demo = lv_btn_create(container);
+    lv_obj_set_size(btn_demo, lv_pct(64), lv_pct(32));
+    lv_obj_align(btn_demo, LV_FLEX_ALIGN_CENTER, 0, 0);
+    lv_obj_t * btn_label_demo = lv_label_create(btn_demo);
+    lv_label_set_text(btn_label_demo, "Demo Page");
+    lv_obj_center(btn_label_demo);
+    lv_obj_add_event_cb(btn_demo, btn_demo_click, LV_EVENT_CLICKED, NULL);
+    
     return screen;
 }
 
@@ -169,14 +167,14 @@ static void btn_bird_click(lv_event_t * e)
     page_open(page_bird_create());
 }
 
+static void btn_2048_click(lv_event_t * e)
+{
+    page_open(page_2048_create());
+}
+
 static void btn_ftp_click(lv_event_t * e)
 {
     page_open_obj(page_ftp());
-}
-
-static void btn_usb_click(lv_event_t * e)
-{
-    page_open_obj(page_usb());
 }
 
 static void btn_settings_click(lv_event_t * e)
@@ -184,14 +182,13 @@ static void btn_settings_click(lv_event_t * e)
     page_open_obj(page_settings_main());
 }
 
+static void btn_demo_click(lv_event_t * e)
+{
+    page_open(demo_page_create());
+}
 static void btn_recorder_click(lv_event_t * e)
 {
     page_open(recorder_page_create());
-}
-
-static void btn_2048_click(lv_event_t * e)
-{
-    page_open(page_2048_create());
 }
 
 static void btn_led_click(lv_event_t * e)
@@ -202,11 +199,6 @@ static void btn_led_click(lv_event_t * e)
 static void btn_ai_click(lv_event_t * e)
 {
     page_open(page_ai_create());
-}
-
-static void btn_wifi_click(lv_event_t *e) 
-{
-    page_open(page_wifi_create());
 }
 
 static void battery_timer_cb(lv_timer_t * timer) {
