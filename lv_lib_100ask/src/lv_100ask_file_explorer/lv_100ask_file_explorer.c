@@ -46,7 +46,7 @@ static void brower_file_event_handler(lv_event_t * e);
 static void init_style(lv_obj_t * obj);
 static void show_dir(lv_obj_t * obj, char * path);
 static void strip_ext(char * dir);
-static void sort_table_items(lv_obj_t * tb, int16_t lo, int16_t hi);
+static void sort_table_by_name(lv_obj_t * tb, int16_t lo, int16_t hi);
 static void exch_table_item(lv_obj_t * tb, int16_t i, int16_t j);
 
 static bool file_ext_match(const char * file_name, const char * file_ext[]);
@@ -165,28 +165,6 @@ void lv_100ask_file_explorer_set_quick_access_state(lv_obj_t * obj, bool state)
 #endif
 
 
-void lv_100ask_file_explorer_set_sort(lv_obj_t * obj, lv_100ask_file_explorer_sort_t sort)
-{
-    LV_ASSERT_OBJ(obj, MY_CLASS);
-
-    lv_100ask_file_explorer_t * explorer = (lv_100ask_file_explorer_t *)obj;
-
-    uint16_t sum = lv_table_get_row_cnt(explorer->file_list);
-
-    switch (sort)
-    {
-        case LV_100ASK_EXPLORER_SORT_KIND:
-            sort_table_items(explorer->file_list, 0, sum - 1);
-            break;
-        case LV_100ASK_EXPLORER_SORT_NAME:
-            /* TODO */
-            break;
-        default:
-            break;
-    }
-}
-
-
 /*=====================
  * Getter functions
  *====================*/
@@ -270,21 +248,21 @@ lv_obj_t * lv_100ask_file_explorer_get_quick_access_ctrl_btn(lv_obj_t * obj)
  *====================*/
 void lv_100ask_file_explorer_open_dir(lv_obj_t * obj, char * dir)
 {
-    lv_100ask_file_explorer_t * explorer = (lv_100ask_file_explorer_t *)obj;
+    //lv_100ask_file_explorer_t * explorer = (lv_100ask_file_explorer_t *)obj;
 
     show_dir(obj, dir);
 }
 
 void lv_100ask_file_explorer_refresh(lv_obj_t * obj) 
 {
-    lv_100ask_file_explorer_t * explorer = (lv_100ask_file_explorer_t *)obj;
+    //lv_100ask_file_explorer_t * explorer = (lv_100ask_file_explorer_t *)obj;
     // 获取的指针直接传进去会出问题，所以要临时拷贝一下
-    char * cur_path = lv_100ask_file_explorer_get_cur_path(explorer);
-    char * path     = strdup(cur_path);
-    if(path == NULL) return;
+    char * cur_path = lv_100ask_file_explorer_get_cur_path(obj);
+    char * path = lv_mem_alloc(strlen(cur_path) + 1);
+    strcpy(path, cur_path);
     path[strlen(path) - 1] = '\0'; // 最后的"/"符号要去掉
-    lv_100ask_file_explorer_open_dir(explorer, path);
-    free(path);
+    lv_100ask_file_explorer_open_dir(obj, path);
+    lv_mem_free(path);
 }
 
 /**********************
@@ -379,7 +357,7 @@ static void lv_100ask_file_explorer_constructor(const lv_obj_class_t * class_p, 
     lv_label_set_long_mode(explorer->path_label, LV_LABEL_LONG_CLIP);
     lv_obj_set_size(explorer->path_label, LV_PCT(100), LV_PCT(100));
     lv_label_set_text(explorer->path_label, "/"/*"https://lvgl.100ask.net"*/);
-    lv_obj_set_style_text_align(explorer->path_label, LV_TEXT_ALIGN_RIGHT, NULL);
+    lv_obj_set_style_text_align(explorer->path_label, LV_TEXT_ALIGN_RIGHT, LV_STATE_DEFAULT);
     lv_obj_align(explorer->path_label, LV_ALIGN_TOP_MID, 0, LV_PCT(50));
     
 
@@ -586,7 +564,7 @@ static void brower_file_event_handler(lv_event_t * e)
 {
     lv_event_code_t code = lv_event_get_code(e);
     lv_obj_t * obj = lv_event_get_user_data(e);
-    lv_obj_t * btn = lv_event_get_target(e);
+    //lv_obj_t * btn = lv_event_get_target(e);
 
     lv_100ask_file_explorer_t * explorer = (lv_100ask_file_explorer_t *)obj;
 
@@ -595,29 +573,29 @@ static void brower_file_event_handler(lv_event_t * e)
             explorer->long_pressed = false;
             return;
         }
-        //struct stat stat_buf;
-        char * file_name[LV_100ASK_FILE_EXPLORER_PATH_MAX_LEN];
-        char * str_fn = NULL;
-        uint16_t row;
-        uint16_t col;
 
-        memset(file_name, 0, sizeof(file_name));
+        char * file_name = lv_mem_alloc(LV_100ASK_FILE_EXPLORER_PATH_MAX_LEN);
+        lv_memset_00(file_name, LV_100ASK_FILE_EXPLORER_PATH_MAX_LEN);
+
+        uint16_t row;  // 行
+        uint16_t col;  // 列
         lv_table_get_selected_cell(explorer->file_list, &row, &col);
-        str_fn = lv_table_get_cell_value(explorer->file_list, row, col);
 
-        str_fn = str_fn+5;
-        if((strcmp(str_fn, ".") == 0))  return;
+        char * str_fn = lv_table_get_cell_value(explorer->file_list, row, col);
+        str_fn += 5;    // 图标占3位，加上2个空格，因此总计向后移5位
+
+        if((strlen(str_fn) == 0) || (strcmp(str_fn, ".") == 0))  return;
         
         if((strcmp(str_fn, "..") == 0) && (strlen(explorer->cur_path) > 3))
         {
             strip_ext(explorer->cur_path);
             strip_ext(explorer->cur_path); // 去掉最后的 '/' 路径
-            lv_snprintf(file_name, sizeof(file_name), "%s", explorer->cur_path);
+            lv_snprintf(file_name, LV_100ASK_FILE_EXPLORER_PATH_MAX_LEN, "%s", explorer->cur_path);
         }
         else
         {
             if(strcmp(str_fn, "..") != 0){
-                lv_snprintf(file_name, sizeof(file_name), "%s%s", explorer->cur_path, str_fn);
+                lv_snprintf(file_name, LV_100ASK_FILE_EXPLORER_PATH_MAX_LEN, "%s%s", explorer->cur_path, str_fn);
             }
         }
 
@@ -633,6 +611,7 @@ static void brower_file_event_handler(lv_event_t * e)
                 lv_event_send(obj, LV_EVENT_CLICKED, e->user_data);
             }
         }
+        lv_mem_free(file_name);
     }
     else if(code == LV_EVENT_SIZE_CHANGED) {
         lv_table_set_col_width(explorer->file_list, 0, lv_obj_get_width(explorer->file_list));
@@ -672,6 +651,7 @@ static void show_dir(lv_obj_t * obj, char * path)
         return;
     }
 
+    // 第0列是 图标+2个空格+文件名，第1列是文件类型
     //lv_table_set_cell_value_fmt(explorer->file_list, index++, 0, LV_SYMBOL_DIRECTORY "  %s", ".");
     lv_table_set_cell_value_fmt(explorer->file_list, index++, 0, LV_SYMBOL_DIRECTORY "  %s", "..");
     lv_table_set_cell_value(explorer->file_list, 0, 1, "0");
@@ -696,26 +676,26 @@ static void show_dir(lv_obj_t * obj, char * path)
             lv_table_set_cell_value(explorer->file_list, index, 1, "2");
         } else if(file_ext_match(fn, AUDIO_FILE_EXT)) {
             lv_table_set_cell_value_fmt(explorer->file_list, index, 0, LV_SYMBOL_AUDIO "  %s", fn);
-            lv_table_set_cell_value(explorer->file_list, index, 1, "3");
+            lv_table_set_cell_value(explorer->file_list, index, 1, "2");
         } else if(file_ext_match(fn, VIDEO_FILE_EXT)) {
             lv_table_set_cell_value_fmt(explorer->file_list, index, 0, LV_SYMBOL_VIDEO "  %s", fn);
-            lv_table_set_cell_value(explorer->file_list, index, 1, "4");
+            lv_table_set_cell_value(explorer->file_list, index, 1, "2");
         } else if(file_ext_match(fn, MIDI_FILE_EXT)) {
             lv_table_set_cell_value_fmt(explorer->file_list, index, 0, LV_SYMBOL_AUDIO "  %s", fn);
-            lv_table_set_cell_value(explorer->file_list, index, 1, "5");
+            lv_table_set_cell_value(explorer->file_list, index, 1, "2");
         } else if(file_ext_match(fn, TEXT_FILE_EXT)) {
             lv_table_set_cell_value_fmt(explorer->file_list, index, 0, CUSTOM_SYMBOL_TXT "  %s", fn);
-            lv_table_set_cell_value(explorer->file_list, index, 1, "6");
+            lv_table_set_cell_value(explorer->file_list, index, 1, "2");
         } else if(is_end_with(fn, ".", false) || is_end_with(fn, "..", false)) {
             /*is dir*/
             //lv_table_set_cell_value_fmt(explorer->file_list, index, 0, LV_SYMBOL_DIRECTORY "  %s", fn);
             continue;
         } else if(fn[0] == '/') { /*is dir*/
             lv_table_set_cell_value_fmt(explorer->file_list, index, 0, LV_SYMBOL_DIRECTORY "  %s", fn+1);
-            lv_table_set_cell_value(explorer->file_list, index, 1, "0");
+            lv_table_set_cell_value(explorer->file_list, index, 1, "1");
         } else {
             lv_table_set_cell_value_fmt(explorer->file_list, index, 0, LV_SYMBOL_FILE "  %s", fn);
-            lv_table_set_cell_value(explorer->file_list, index, 1, "1");
+            lv_table_set_cell_value(explorer->file_list, index, 1, "2");
         }
 
         index++;
@@ -725,9 +705,10 @@ static void show_dir(lv_obj_t * obj, char * path)
 
     lv_fs_dir_close(&dir);
     lv_table_set_row_cnt(explorer->file_list, index);
-    lv_100ask_file_explorer_set_sort(obj, LV_100ASK_EXPLORER_SORT_KIND);
-    // 让table移动到最顶部
-    lv_obj_scroll_to_y(explorer->file_list, 0, LV_ANIM_OFF);
+
+    sort_table_by_name(explorer->file_list, 0, lv_table_get_row_cnt(explorer->file_list) - 1);
+    
+    lv_obj_scroll_to_y(explorer->file_list, 0, LV_ANIM_OFF);    // 滚动到最顶部
 
     lv_memset_00(explorer->cur_path, sizeof(explorer->cur_path));
     strcpy(explorer->cur_path, path);
@@ -762,6 +743,24 @@ static void strip_ext(char *dir)
 
 static void exch_table_item(lv_obj_t * tb, int16_t i,int16_t j )
 {
+    const char * i0 = lv_table_get_cell_value(tb, i, 0);
+    const char * tmpi0 = lv_mem_alloc(strlen(i0) + 1);
+    strcpy(tmpi0, i0);
+
+    const char * i1 = lv_table_get_cell_value(tb, i, 1);
+    const char * tmpi1 = lv_mem_alloc(strlen(i1) + 1);
+    strcpy(tmpi1, i1);
+
+    lv_table_set_cell_value(tb, i, 0, lv_table_get_cell_value(tb, j, 0));
+    lv_table_set_cell_value(tb, i, 1, lv_table_get_cell_value(tb, j, 1));
+
+    lv_table_set_cell_value(tb, j, 0, tmpi0);
+    lv_table_set_cell_value(tb, j, 1, tmpi1);
+
+    lv_mem_free(tmpi0);
+    lv_mem_free(tmpi1);
+
+    /*
     const char * tmp;
     tmp = lv_table_get_cell_value(tb, i, 0);
     lv_table_set_cell_value(tb, 0, 2, tmp);
@@ -772,37 +771,57 @@ static void exch_table_item(lv_obj_t * tb, int16_t i,int16_t j )
     lv_table_set_cell_value(tb, 0, 2, tmp);
     lv_table_set_cell_value(tb, i, 1, lv_table_get_cell_value(tb, j, 1));
     lv_table_set_cell_value(tb, j, 1, lv_table_get_cell_value(tb, 0, 2));
+    */
     
 }
 
-
-// Quick sort 3 way
-static void sort_table_items(lv_obj_t * tb, int16_t lo, int16_t hi )
+/**
+ * 先按照类型，再按照文件名排序
+ * @param tb table
+ * @param lo from index
+ * @param hi to index
+ */
+static void sort_table_by_name(lv_obj_t * tb, int16_t lo, int16_t hi)
 {
     if( lo >= hi ) return;  //单个元素或者没有元素的情况
 
     int16_t lt = lo;
     int16_t i = lo + 1;  //第一个元素是切分元素，所以指针i可以从lo+1开始
     int16_t gt = hi;
-    const char * v = lv_table_get_cell_value(tb, lo, 1);
+
+    const char * cut_type_ptr = lv_table_get_cell_value(tb, lo, 1);
+    const char * cut_type = lv_mem_alloc(strlen(cut_type_ptr) + 1);
+    strcpy(cut_type, cut_type_ptr);
+
+    const char * cut_name_ptr = lv_table_get_cell_value(tb, lo, 0) + 5;    //右移5位，避开图标和两个空格
+    const char * cut_name = lv_mem_alloc(strlen(cut_name_ptr) + 1);
+    strcpy(cut_name, cut_name_ptr);
+
     while( i <= gt )
     {
-        if(strcmp(lv_table_get_cell_value(tb, i, 1), v) < 0)  //小于切分元素的放在lt左边，因此指针lt和指针i整体右移
+        int type_cmp = strcmp(lv_table_get_cell_value(tb, i, 1), cut_type);
+        int name_cmp = strcmp(lv_table_get_cell_value(tb, i, 0) + 5, cut_name);    //strcmp的正负是按照ascii来计算的
+        bool result = (type_cmp != 0) ? (type_cmp < 0) : (name_cmp < 0);
+        //printf("[file-manager] %s %s vs %s %s, %d %d, %d\n", lv_table_get_cell_value(tb, i, 1), lv_table_get_cell_value(tb, i, 0) + 5, cut_type, cut_name, type_cmp, name_cmp, result);
+
+        if(result)  //小于切分元素的放在lt左边，因此指针lt和指针i整体右移
             exch_table_item(tb, lt++, i++);
-        else if(strcmp(lv_table_get_cell_value(tb, i, 1), v) > 0)  //大于切分元素的放在gt右边，因此指针gt需要左移
+        else  //大于切分元素的放在gt右边，因此指针gt需要左移
             exch_table_item(tb, i, gt--);
-        else
-            i++;
     }
+
+    lv_mem_free(cut_type);
+    lv_mem_free(cut_name);
+
     //lt-gt的元素已经排定，只需对it左边和gt右边的元素进行递归求解
-    sort_table_items(tb, lo, lt-1);
-    sort_table_items(tb, gt+1, hi);
+    sort_table_by_name(tb, lo, lt-1);
+    sort_table_by_name(tb, gt+1, hi);
 }
 
 static bool file_ext_match(const char * file_name, const char * file_ext[])
 {
     for(int i = 0; file_ext[i] != NULL; i++) {
-        if(str_end_with(file_name, file_ext[i], false)) return true;
+        if(is_end_with(file_name, file_ext[i], false)) return true;
     }
     return false;
 }

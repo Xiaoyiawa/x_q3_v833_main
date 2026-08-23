@@ -85,7 +85,7 @@ static int g_queue_len = 0;
 static int g_async_pending = 0;
 
 /* ==================== 函数声明 ==================== */
-static void back_cb(lv_event_t *e);
+static void ai_back_cb(lv_event_t *e);
 static void send_cb(lv_event_t *e);
 static void dropdown_cb(lv_event_t *e);
 static void scroll_bottom(void);
@@ -276,7 +276,7 @@ BasePage *page_ai_create(void) {
     lv_obj_t *lbl_back = lv_label_create(btn_back);
     lv_label_set_text(lbl_back, LV_SYMBOL_LEFT);
     lv_obj_center(lbl_back);
-    lv_obj_add_event_cb(btn_back, back_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(btn_back, ai_back_cb, LV_EVENT_CLICKED, NULL);
 
     page->dropdown = lv_dropdown_create(bar);
     lv_obj_set_pos(page->dropdown, 30 + GAP, 0);
@@ -359,7 +359,7 @@ BasePage *page_ai_create(void) {
 }
 
 /* ==================== UI 回调 ==================== */
-static void back_cb(lv_event_t *e) {
+static void ai_back_cb(lv_event_t *e) {
     (void)e;
     printf("[AI] Back button pressed, cleaning up\n");
     clear_queue();

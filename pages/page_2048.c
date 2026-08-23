@@ -1,11 +1,19 @@
 #include "page_2048.h"
 #include "../cJSON/cJSON.h"
+#include <stdbool.h>
 #include <sys/stat.h>
 #include <errno.h>
 
 #define SAVE_PATH "./setting/2048.json"
 
 
+typedef struct {
+    BasePage base;
+    lv_obj_t * game;
+    lv_obj_t * score_label;
+} Page2048;
+
+static void back_click(lv_event_t * e);
 static void reset_click(lv_event_t * e);
 static void game_value_changed(lv_event_t * e);
 static void page_2048_destroy(void * page);
@@ -23,35 +31,34 @@ BasePage * page_2048_create(void)
     lv_obj_t * screen = lv_obj_create(lv_scr_act());
     lv_obj_remove_style_all(screen);
     lv_obj_set_size(screen, lv_pct(100), lv_pct(100));
-    lv_obj_set_style_bg_color(screen, lv_color_white(), 0);
+
+    lv_obj_t * back_btn = lv_btn_create(screen);
+    lv_obj_set_size(back_btn, lv_pct(25), lv_pct(12));
+    lv_obj_align(back_btn, LV_ALIGN_TOP_LEFT, 0, 0);
+    lv_obj_t * back_label = lv_label_create(back_btn);
+    lv_label_set_text(back_label, CUSTOM_SYMBOL_BACK "");
+    lv_obj_center(back_label);
+    lv_obj_add_event_cb(back_btn, back_click, LV_EVENT_CLICKED, p);
 
     lv_obj_t * reset_btn = lv_btn_create(screen);
-    lv_obj_set_size(reset_btn, lv_pct(24), lv_pct(12));
-    lv_obj_align(reset_btn, LV_ALIGN_TOP_LEFT, 0, 0);
+    lv_obj_set_size(reset_btn, lv_pct(25), lv_pct(12));
+    lv_obj_align(reset_btn, LV_ALIGN_TOP_RIGHT, 0, 0);
     lv_obj_t * reset_label = lv_label_create(reset_btn);
-    lv_label_set_text(reset_label, "reset");
+    lv_label_set_text(reset_label, LV_SYMBOL_REFRESH "");
     lv_obj_center(reset_label);
     lv_obj_add_event_cb(reset_btn, reset_click, LV_EVENT_CLICKED, p);
 
-    p->score_label = lv_label_create(screen);
-    lv_obj_align(p->score_label, LV_ALIGN_TOP_RIGHT, -20, 5);
-    lv_label_set_text(p->score_label, "0");
-    lv_obj_set_style_text_font(p->score_label, lv_theme_get_font_large(NULL), 0);
-    lv_obj_set_style_text_color(p->score_label, lv_color_black(), 0);
+    lv_obj_t * score_label = lv_label_create(screen);
+    lv_obj_align(score_label, LV_ALIGN_TOP_MID, 0, lv_pct(2));
+    lv_label_set_text(score_label, "0");
+    p->score_label = score_label;
 
-    lv_obj_t * game_container = lv_obj_create(screen);
-    lv_obj_remove_style_all(game_container);
-    lv_obj_set_size(game_container, 205, 205);
-    lv_obj_center(game_container);
-    lv_obj_set_pos(game_container, lv_obj_get_x_aligned(game_container), lv_obj_get_y_aligned(game_container) + 13);
-    lv_obj_set_style_bg_opa(game_container, LV_OPA_TRANSP, 0);
-    lv_obj_set_flex_flow(game_container, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(game_container, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-
-    p->game = lv_100ask_2048_create(game_container);
-    lv_obj_set_size(p->game, lv_pct(100), lv_pct(100));
-    lv_obj_set_style_pad_all(p->game, 0, 0);
-    lv_obj_set_style_border_width(p->game, 0, 0);
+    lv_obj_t * game_view = lv_100ask_2048_create(screen);
+    lv_obj_set_size(game_view, lv_pct(85), lv_pct(85));
+    lv_obj_set_style_pad_all(game_view, 0, 0);
+    lv_obj_set_style_border_width(game_view, 0, 0);
+    lv_obj_align(game_view, LV_ALIGN_BOTTOM_MID, 0, 0);
+    p->game = game_view;
 
     // 加载存档，若失败则初始化新游戏
     if (!load_game_state(p)) {
@@ -59,7 +66,7 @@ BasePage * page_2048_create(void)
     }
     update_score(p);
 
-    lv_obj_add_event_cb(p->game, game_value_changed, LV_EVENT_VALUE_CHANGED, p);
+    lv_obj_add_event_cb(game_view, game_value_changed, LV_EVENT_VALUE_CHANGED, p);
 
     p->base.obj = screen;
     p->base.on_destroy = page_2048_destroy;
@@ -168,6 +175,11 @@ static bool load_game_state(Page2048 * p)
     return valid;
 }
 
+static void back_click(lv_event_t * e)
+{
+    page_back();
+}
+
 static void reset_click(lv_event_t * e)
 {
     Page2048 * p = (Page2048*)lv_event_get_user_data(e);
@@ -209,5 +221,5 @@ static void page_2048_destroy(void * page)
     }
 
     sys_set_dont_timeout(false);
-    //free(p); // 气死我了加这个会崩
+    //free(p); // 气死我了加这个会崩  因为page_manager里会自动释放，我说过了你可能没注意qwq
 }

@@ -17,12 +17,6 @@ extern "C" {
  *      TYPEDEFS
  *********************/
 
-typedef struct {
-    BasePage base;
-    lv_obj_t * game;
-    lv_obj_t * score_label;
-} Page2048;
-
 BasePage * page_2048_create(void);
 
 #ifdef __cplusplus
