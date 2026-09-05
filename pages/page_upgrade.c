@@ -8,6 +8,8 @@ typedef struct {
     char file_name[128];
     char file_sha1[128];
     char file_size[32];
+    char file_parts[8][128];
+    int  file_part_count;
     char upgrade_info_url[256];
     bool has_new_version;
     bool updating;
@@ -41,6 +43,15 @@ struct curl_data {
     size_t size;
 };
 
+struct download_ctx {
+    FILE * fp;
+    size_t written;
+    UpgradePage * page;
+    int last_pct;
+    int part_index;
+    int part_total;
+};
+
 static lv_obj_t * upgrade_ui_create(UpgradePage * page);
 static void upgrade_on_create(void * p);
 static void upgrade_on_destroy(void * p);
@@ -70,8 +81,12 @@ static void ui_update_status_cb(void * p);   /* 接收 status_msg 并更新屏�
 
 /* 工具函数 */
 static int read_local_version(char * buf, size_t size);
-static int download_file(const char * url, const char * save_path);
+static int download_file(const char * url, const char * save_path, UpgradePage * page,
+                         int part_index, int part_total);
 static size_t curl_write_memory(void * ptr, size_t size, size_t nmemb, void * data);
+static size_t curl_write_file(void * ptr, size_t size, size_t nmemb, void * data);
+static int curl_progress_cb(void * clientp, curl_off_t dltotal, curl_off_t dlnow,
+                            curl_off_t ultotal, curl_off_t ulnow);
 static int sha1_verify(const char * file_path, const char * expected_sha1);
 static int run_install_script(UpgradePage * page);
 static void show_success_dialog(UpgradePage * page);
@@ -275,7 +290,7 @@ static void btn_info_cb(lv_event_t * e)
     if (locked) return;
 
     UPGRADE_DEBUG("Info button clicked, downloading upgrade info from %s", page->upgrade_info_url);
-    if (download_file(page->upgrade_info_url, TMP_UPGRADE_INFO) == 0) {
+    if (download_file(page->upgrade_info_url, TMP_UPGRADE_INFO, NULL, 0, 0) == 0) {
         UPGRADE_DEBUG("Opening upgrade info text page");
         page_open(page_txt_create(TMP_UPGRADE_INFO));
     } else {
@@ -446,6 +461,20 @@ static void * check_update_thread(void * arg)
     } else {
         page->file_size[0] = '\0';
     }
+
+    page->file_part_count = 0;
+    cJSON * parts = cJSON_GetObjectItem(root, "file_parts");
+    if (cJSON_IsArray(parts)) {
+        int n = cJSON_GetArraySize(parts);
+        for (int i = 0; i < n && i < 8; i++) {
+            cJSON * p = cJSON_GetArrayItem(parts, i);
+            if (cJSON_IsString(p) && p->valuestring) {
+                snprintf(page->file_parts[i], sizeof(page->file_parts[i]), "%s", p->valuestring);
+                page->file_part_count++;
+            }
+        }
+        UPGRADE_DEBUG("Remote file parts: %d", page->file_part_count);
+    }
     cJSON_Delete(root);
 
     UPGRADE_DEBUG("Remote version=%s, file=%s, sha1=%s", page->remote_version, page->file_name, page->file_sha1);
@@ -503,13 +532,67 @@ static void * upgrade_thread(void * arg)
     snprintf(save_path, sizeof(save_path), "%s/%s", TMP_DIR, page->file_name);
     mkdir(TMP_DIR, 0755);
     UPGRADE_DEBUG("Downloading %s to %s", page->file_url, save_path);
-    if (download_file(page->file_url, save_path) != 0) {
-        lv_async_call(ui_show_download_fail, page);
-        set_thread_running(page, false);
-        pthread_mutex_lock(&page->lock);
-        page->updating = false;
-        pthread_mutex_unlock(&page->lock);
-        return NULL;
+
+    if (page->file_part_count > 0) {
+        /* 分片下载并拼接 */
+        char base_url[256];
+        snprintf(base_url, sizeof(base_url), "%s", page->file_url);
+        char * slash = strrchr(base_url, '/');
+        if (slash) slash[1] = '\0';
+
+        FILE * out = fopen(save_path, "wb");
+        if (!out) {
+            lv_async_call(ui_show_download_fail, page);
+            set_thread_running(page, false);
+            pthread_mutex_lock(&page->lock);
+            page->updating = false;
+            pthread_mutex_unlock(&page->lock);
+            return NULL;
+        }
+
+        char part_url[512];
+        char part_path[512];
+        char buf[4096];
+        int fail = 0;
+        for (int i = 0; i < page->file_part_count; i++) {
+            snprintf(part_url, sizeof(part_url), "%s%s", base_url, page->file_parts[i]);
+            snprintf(part_path, sizeof(part_path), "%s/%s", TMP_DIR, page->file_parts[i]);
+            if (download_file(part_url, part_path, page, i, page->file_part_count) != 0) {
+                fail = 1;
+                break;
+            }
+            FILE * part = fopen(part_path, "rb");
+            if (!part) {
+                fail = 1;
+                break;
+            }
+            size_t n;
+            while ((n = fread(buf, 1, sizeof(buf), part)) > 0) {
+                fwrite(buf, 1, n, out);
+            }
+            fclose(part);
+            unlink(part_path);
+        }
+        fclose(out);
+
+        if (fail) {
+            unlink(save_path);
+            lv_async_call(ui_show_download_fail, page);
+            set_thread_running(page, false);
+            pthread_mutex_lock(&page->lock);
+            page->updating = false;
+            pthread_mutex_unlock(&page->lock);
+            return NULL;
+        }
+    } else {
+        if (download_file(page->file_url, save_path, page, 0, 0) != 0) {
+            lv_async_call(ui_show_download_fail, page);
+            set_thread_running(page, false);
+            pthread_mutex_lock(&page->lock);
+            page->updating = false;
+            pthread_mutex_unlock(&page->lock);
+            return NULL;
+        }
     }
     UPGRADE_DEBUG("Download completed");
 
@@ -645,31 +728,96 @@ static size_t curl_write_memory(void * ptr, size_t size, size_t nmemb, void * da
     return total;
 }
 
-static int download_file(const char * url, const char * save_path)
+static size_t curl_write_file(void * ptr, size_t size, size_t nmemb, void * data)
+{
+    struct download_ctx * ctx = (struct download_ctx *)data;
+    size_t total = size * nmemb;
+    size_t n = fwrite(ptr, 1, total, ctx->fp);
+    ctx->written += n;
+    return n;
+}
+
+static int curl_progress_cb(void * clientp, curl_off_t dltotal, curl_off_t dlnow,
+                            curl_off_t ultotal, curl_off_t ulnow)
+{
+    (void)ultotal;
+    (void)ulnow;
+    struct download_ctx * ctx = (struct download_ctx *)clientp;
+    if (!ctx->page || dltotal <= 0) return 0;
+    int pct = (int)(dlnow * 100 / dltotal);
+    if (pct != ctx->last_pct) {
+        ctx->last_pct = pct;
+        char buf[64];
+        if (ctx->part_total > 1) {
+            snprintf(buf, sizeof(buf), "正在下载更新... 分片 %d/%d (%d%%)",
+                     ctx->part_index + 1, ctx->part_total, pct);
+        } else {
+            snprintf(buf, sizeof(buf), "正在下载更新... %d%%", pct);
+        }
+        update_status_async(ctx->page, buf);
+    }
+    return 0;
+}
+
+static int download_file(const char * url, const char * save_path, UpgradePage * page,
+                         int part_index, int part_total)
 {
     UPGRADE_DEBUG("Downloading %s -> %s", url, save_path);
     CURL * curl = curl_easy_init();
     if (!curl) return -1;
+
     FILE * fp = fopen(save_path, "wb");
     if (!fp) {
         curl_easy_cleanup(curl);
         return -1;
     }
+
+    struct download_ctx ctx;
+    ctx.fp = fp;
+    ctx.written = 0;
+    ctx.page = page;
+    ctx.last_pct = -1;
+    ctx.part_index = part_index;
+    ctx.part_total = part_total;
+
     curl_easy_setopt(curl, CURLOPT_URL, url);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L);
-    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 10L);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write_file);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &ctx);
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 15L);
+    curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, 1024L);
+    curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, 30L);
     curl_easy_setopt(curl, CURLOPT_CAINFO, CA_BUNDLE_PATH);
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+    curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
+    curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, curl_progress_cb);
+    curl_easy_setopt(curl, CURLOPT_XFERINFODATA, &ctx);
+
     CURLcode res = curl_easy_perform(curl);
-    fclose(fp);
+
+    long http_code = 0;
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+    curl_off_t content_length = 0;
+    curl_easy_getinfo(curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD_T, &content_length);
+
+    if (fclose(fp) != 0 && res == CURLE_OK) {
+        res = CURLE_WRITE_ERROR;
+    }
     curl_easy_cleanup(curl);
-    if (res != CURLE_OK) {
-        UPGRADE_DEBUG("Download failed: curl error %d", res);
+
+    if (res != CURLE_OK || http_code >= 400) {
+        UPGRADE_DEBUG("Download failed: curl error %d (%s), HTTP %ld", res, curl_easy_strerror(res), http_code);
         unlink(save_path);
         return -1;
     }
-    UPGRADE_DEBUG("Download succeeded");
+
+    if (content_length > 0 && (curl_off_t)ctx.written != content_length) {
+        UPGRADE_DEBUG("Download incomplete: got %zu bytes, expected %lld bytes",
+                      ctx.written, (long long)content_length);
+        unlink(save_path);
+        return -1;
+    }
+
+    UPGRADE_DEBUG("Download succeeded (%zu bytes)", ctx.written);
     return 0;
 }
 

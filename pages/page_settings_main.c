@@ -170,7 +170,7 @@ static void btn_back_click(lv_event_t * e)
 }
 static void btn_upgrade_click(lv_event_t * e)
 {
-    page_open(page_upgrade_create("https://raw.giteeusercontent.com/testxiaoyi/demo_upgrade/raw/master/version.json"));
+    page_open(page_upgrade_create("https://raw.giteeusercontent.com/testxiaoyi/demo_upgrade/raw/master/version_new.json"));
 }
 
 static void btn_debug_click(lv_event_t * e)
