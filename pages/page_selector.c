@@ -68,7 +68,7 @@ static lv_obj_t * page_selector_obj(SelectorPage * page, char * filename)
     lv_obj_set_size(btn_txt, lv_pct(100), lv_pct(32));
     lv_obj_align(btn_txt, LV_FLEX_ALIGN_CENTER, 0, 0);
     lv_obj_t * btn_label_txt = lv_label_create(btn_txt);
-    lv_label_set_text(btn_label_txt, "text viewer");
+    lv_label_set_text(btn_label_txt, "文本查看器");
     lv_obj_center(btn_label_txt);
     lv_obj_add_event_cb(btn_txt, btn_txt_click, LV_EVENT_CLICKED, page);
 
@@ -76,7 +76,7 @@ static lv_obj_t * page_selector_obj(SelectorPage * page, char * filename)
     lv_obj_set_size(btn_image, lv_pct(100), lv_pct(32));
     lv_obj_align(btn_image, LV_FLEX_ALIGN_CENTER, 0, 0);
     lv_obj_t * btn_label_image = lv_label_create(btn_image);
-    lv_label_set_text(btn_label_image, "image viewer");
+    lv_label_set_text(btn_label_image, "图像查看器");
     lv_obj_center(btn_label_image);
     lv_obj_add_event_cb(btn_image, btn_image_click, LV_EVENT_CLICKED, page);
 
@@ -84,7 +84,7 @@ static lv_obj_t * page_selector_obj(SelectorPage * page, char * filename)
     lv_obj_set_size(btn_audio, lv_pct(100), lv_pct(32));
     lv_obj_align(btn_audio, LV_FLEX_ALIGN_CENTER, 0, 0);
     lv_obj_t * btn_label_audio = lv_label_create(btn_audio);
-    lv_label_set_text(btn_label_audio, "audio player");
+    lv_label_set_text(btn_label_audio, "音频播放器");
     lv_obj_center(btn_label_audio);
     lv_obj_add_event_cb(btn_audio, btn_audio_click, LV_EVENT_CLICKED, page);
 
@@ -92,7 +92,7 @@ static lv_obj_t * page_selector_obj(SelectorPage * page, char * filename)
     lv_obj_set_size(btn_video, lv_pct(100), lv_pct(32));
     lv_obj_align(btn_video, LV_FLEX_ALIGN_CENTER, 0, 0);
     lv_obj_t * btn_label_video = lv_label_create(btn_video);
-    lv_label_set_text(btn_label_video, "video player");
+    lv_label_set_text(btn_label_video, "视频播放器");
     lv_obj_center(btn_label_video);
     lv_obj_add_event_cb(btn_video, btn_video_click, LV_EVENT_CLICKED, page);
 

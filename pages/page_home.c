@@ -53,7 +53,7 @@ lv_obj_t * page_home_obj(HomePage * page)
     page->font_date       = font_date;
 
     lv_obj_t * label_time = lv_label_create(screen);
-    lv_label_set_text(label_time, "23:33:33");
+    lv_label_set_text(label_time, "14:45:14");
     lv_obj_set_size(label_time, LV_PCT(100), LV_PCT(22));
     lv_obj_align(label_time, LV_ALIGN_TOP_MID, 0, LV_PCT(10));
     lv_obj_set_style_text_font(label_time, font_time, LV_STATE_DEFAULT);
@@ -88,7 +88,7 @@ lv_obj_t * page_home_obj(HomePage * page)
     lv_obj_t * btn_robot = lv_btn_create(screen);
     lv_obj_set_size(btn_robot, LV_PCT(48), LV_PCT(25));
     lv_obj_t * btn_robot_label = lv_label_create(btn_robot);
-    lv_label_set_text(btn_robot_label, "Scan");
+    lv_label_set_text(btn_robot_label, "扫描");
     lv_obj_center(btn_robot_label);
     lv_obj_add_event_cb(btn_robot, btn_scan_click, LV_EVENT_CLICKED, NULL);
     lv_obj_align(btn_robot, LV_ALIGN_TOP_LEFT, 0, LV_PCT(72));
@@ -96,7 +96,7 @@ lv_obj_t * page_home_obj(HomePage * page)
     lv_obj_t * btn_menu = lv_btn_create(screen);
     lv_obj_set_size(btn_menu, LV_PCT(48), LV_PCT(25));
     lv_obj_t * btn_menu_label = lv_label_create(btn_menu);
-    lv_label_set_text(btn_menu_label, "Menu");
+    lv_label_set_text(btn_menu_label, "菜单");
     lv_obj_center(btn_menu_label);
     lv_obj_add_event_cb(btn_menu, btn_menu_click, LV_EVENT_CLICKED, NULL);
     lv_obj_align(btn_menu, LV_ALIGN_TOP_RIGHT, 0, LV_PCT(72));

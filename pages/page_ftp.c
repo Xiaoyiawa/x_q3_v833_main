@@ -28,7 +28,7 @@ lv_obj_t * page_ftp(void)
     lv_obj_set_size(btn_start, lv_pct(60), lv_pct(25));
     lv_obj_align(btn_start, LV_ALIGN_TOP_MID, 0, lv_pct(20));
     lv_obj_t * btn_start_label = lv_label_create(btn_start);
-    lv_label_set_text(btn_start_label, "start vsftpd");
+    lv_label_set_text(btn_start_label, "启动vsftpd");
     lv_obj_center(btn_start_label);
     lv_obj_add_event_cb(btn_start, btn_start_click, LV_EVENT_CLICKED, label_ip);
 
@@ -36,7 +36,7 @@ lv_obj_t * page_ftp(void)
     lv_obj_set_size(btn_stop, lv_pct(60), lv_pct(25));
     lv_obj_align(btn_stop, LV_ALIGN_TOP_MID, 0, lv_pct(50));
     lv_obj_t * btn_stop_label = lv_label_create(btn_stop);
-    lv_label_set_text(btn_stop_label, "kill vsftpd");
+    lv_label_set_text(btn_stop_label, "关闭vsftpd");
     lv_obj_center(btn_stop_label);
     lv_obj_add_event_cb(btn_stop, btn_stop_click, LV_EVENT_CLICKED, label_ip);
     
@@ -117,13 +117,13 @@ static void refresh_text(lv_obj_t * label)
             pclose(fp);
 
             if(strlen(ip) == 0)
-                lv_label_set_text(label, "No Connection");
+                lv_label_set_text(label, "未连接到网络");
             else
                 lv_label_set_text(label, ip);
         }
     }
     else {
-        lv_label_set_text(label, "Not Running");
+        lv_label_set_text(label, "未运行");
     }
 
 }

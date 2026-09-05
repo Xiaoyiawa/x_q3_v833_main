@@ -382,11 +382,11 @@ static void dropdown_cb(lv_event_t *e) {
     load_config_by_index(idx);
     if (g_configs[idx].valid) {
         char msg[128];
-        snprintf(msg, sizeof(msg), "Switched to model: %s", g_configs[idx].model);
+        snprintf(msg, sizeof(msg), "已切换模型至: %s", g_configs[idx].model);
         add_message(msg, lv_color_hex(0x808080));
         printf("[AI] Switched to config: %s\n", g_configs[idx].name);
     } else {
-        add_warning("Selected config is invalid. Please check fields.");
+        add_warning("选择的配置无效，请选择有效的模型");
         printf("[AI] Selected config is invalid\n");
     }
     scroll_bottom();
@@ -397,7 +397,7 @@ static void send_cb(lv_event_t *e) {
     if (g_page->waiting || !g_page->input) return;
 
     if (g_api_url[0] == '\0' || g_api_key[0] == '\0' || g_model[0] == '\0') {
-        add_warning("No valid config selected. Please choose a valid model.");
+        add_warning("没有选择有效的配置。请选择一个有效的模型");
         scroll_bottom();
         return;
     }
@@ -407,7 +407,7 @@ static void send_cb(lv_event_t *e) {
 
     char *user_input = strdup(text);
     if (!user_input) {
-        add_warning("Out of memory");
+        add_warning("内存溢出！");
         return;
     }
 
@@ -421,7 +421,7 @@ static void send_cb(lv_event_t *e) {
 
     pthread_t tid;
     if (pthread_create(&tid, NULL, api_thread, prompt) != 0) {
-        add_warning("Cannot start request");
+        add_warning("无法启动请求");
         set_waiting(false);
         free(prompt);
     } else {
@@ -451,7 +451,7 @@ static void add_user_message(const char *text) {
 
 static void add_warning(const char *text) {
     char buf[1024];
-    snprintf(buf, sizeof(buf), "Warning: %s", text);
+    snprintf(buf, sizeof(buf), "警告: %s", text);
     add_message(buf, lv_color_hex(0x800080));
 }
 
@@ -702,7 +702,7 @@ static void on_api_response_ui_cb(void *data) {
         if (ai->ok && ai->text) {
             add_message(ai->text, lv_color_black());
         } else {
-            add_warning("Request failed");
+            add_warning("请求失败\n请检查网络连接");
         }
         free(ai->text);
         free(ai);
@@ -781,13 +781,36 @@ static void *api_thread(void *arg) {
     lv_async_call((lv_async_cb_t)add_ai_message_start, NULL);
 
     CURLcode res = curl_easy_perform(curl);
-    if (res != CURLE_OK) {
-        printf("[AI] curl_easy_perform failed: %s\n", curl_easy_strerror(res));
+    long http_code = 0;
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+
+    if (res != CURLE_OK || http_code >= 400) {
+        if (res != CURLE_OK) {
+            printf("[AI] curl_easy_perform failed: %s (HTTP %ld)\n", curl_easy_strerror(res), http_code);
+        } else {
+            printf("[AI] Request failed with HTTP %ld\n", http_code);
+        }
+
+        char *err = malloc(256);
+        if (err) {
+            if (http_code == 401 || http_code == 403) {
+                snprintf(err, 256, "API密钥无效\n(HTTP %ld)", http_code);
+            } else if (http_code == 404) {
+                snprintf(err, 256, "页面未找到\n请检查api url\n (HTTP %ld)", http_code);
+            } else if (http_code == 429) {
+                snprintf(err, 256, "请求过于频繁\n请稍后再试\n (HTTP %ld)", http_code);
+            } else if (http_code > 0) {
+                snprintf(err, 256, "请求失败\n(HTTP %ld)", http_code);
+            } else {
+                snprintf(err, 256, "请求失败:\n%s", curl_easy_strerror(res));
+            }
+            lv_async_call((lv_async_cb_t)add_warning, err);
+        }
+
         lv_async_call((lv_async_cb_t)finish_ai_message, NULL);
-        lv_async_call((lv_async_cb_t)add_warning, "Request failed");
         set_waiting(false);
     } else {
-        printf("[AI] Request completed successfully\n");
+        printf("[AI] Request completed successfully (HTTP %ld)\n", http_code);
     }
 
     curl_slist_free_all(headers);
