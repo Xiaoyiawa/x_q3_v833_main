@@ -53,7 +53,6 @@ BasePage * page_txt_create(char * filename)
     lv_obj_remove_style_all(screen);
     lv_obj_set_size(screen, lv_pct(100), lv_pct(100));
     lv_obj_set_style_bg_color(screen, lv_color_white(), 0);
-    lv_obj_set_style_text_color(screen, lv_color_black(), 0);
 
     FILE * fp = fopen(filename, "r");
     if(fp == NULL) {

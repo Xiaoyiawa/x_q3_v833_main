@@ -49,7 +49,7 @@ extern "C" {
 /**
  * 字体颜色
  */
-#define TEXT_COLOR lv_color_white()
+#define TEXT_COLOR lv_color_black()
 
 /**
  * MIDI配置文件
