@@ -9,9 +9,10 @@
 #include "page_midi.h"
 #include "page_image.h"
 #include "page_txt.h"
-#include "platform/str_utils.h"
-#include "platform/hw_keys.h"
-#include "views/custom_msgbox.h"
+#include "str_utils.h"
+#include "hw_keys.h"
+#include "config_manager.h"
+#include "custom_msgbox.h"
 
 typedef enum { FILE_OPERATION_NONE = 0, FILE_OPERATION_CUT, FILE_OPERATION_COPY } file_operation_t;
 
@@ -28,7 +29,7 @@ typedef struct
 
 static const char * btn_txts[] = {"是", "否", NULL};
 
-static lv_obj_t * page_file_manager_obj(FileManagerPage * page);
+static lv_obj_t * page_file_manager_obj(FileManagerPage * page, char * dir);
 static bool is_blacklisted(const char * path);
 static void explorer_event_handler(lv_event_t * e);
 static void back_click(lv_event_t * e);
@@ -121,18 +122,18 @@ static bool is_directory(char * file_name)
     return false;
 }
 
-BasePage * page_file_manager_create(void)
+BasePage * page_file_manager_create(char * dir)
 {
     FileManagerPage * page = malloc(sizeof(FileManagerPage));
     if(!page) return NULL;
     memset(page, 0, sizeof(FileManagerPage));
 
-    page->base.obj        = page_file_manager_obj(page);
+    page->base.obj        = page_file_manager_obj(page, dir);
     page->base.on_key     = page_file_manager_on_key;
     return (BasePage *)page;
 }
 
-lv_obj_t * page_file_manager_obj(FileManagerPage * page)
+lv_obj_t * page_file_manager_obj(FileManagerPage * page, char * dir)
 {
     lv_obj_t * screen = lv_obj_create(lv_scr_act());
     lv_obj_remove_style_all(screen);
@@ -141,7 +142,14 @@ lv_obj_t * page_file_manager_obj(FileManagerPage * page)
     lv_obj_t * file_explorer = lv_100ask_file_explorer_create(screen);
     lv_obj_add_event_cb(file_explorer, explorer_event_handler, 
 							LV_EVENT_ALL, page);
-    lv_100ask_file_explorer_open_dir(file_explorer, "//mnt");
+    if(!dir) {
+        lv_100ask_file_explorer_open_dir(file_explorer, "//mnt");
+    }
+    else {
+        char lvdir[LV_100ASK_FILE_EXPLORER_PATH_MAX_LEN];
+        lv_snprintf(lvdir, sizeof(lvdir), "/%s", dir);
+        lv_100ask_file_explorer_open_dir(file_explorer, lvdir);
+    }
     page->file_explorer = file_explorer;
 
     lv_obj_t * btn_back = lv_btn_create(screen);
@@ -239,11 +247,12 @@ static void explorer_event_handler(lv_event_t * e)
             page_open(page_midi_create(file_name));
         } else if(file_ext_match(file_name, TEXT_FILE_EXT)) {
             page_open(page_txt_create(file_name));
+        } else {
+            page_open(page_selector_create(file_name));
         }
         
-    }
-
-    if(code == LV_EVENT_LONG_PRESSED) {
+    } 
+    else if(code == LV_EVENT_LONG_PRESSED) {
         printf("[file_manager] long-pressed %s\n", file_name);
         lv_label_set_text(page->label_file_name, sel_fn);
         lv_obj_clear_flag(page->container_act, LV_OBJ_FLAG_HIDDEN);

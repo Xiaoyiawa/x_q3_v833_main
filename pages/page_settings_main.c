@@ -6,11 +6,12 @@
 #include "page_wifi.h"
 #include "page_upgrade.h"
 #include "page_debug.h"
-#include "platform/str_utils.h"
+#include "utils/str_utils.h"
 #include "platform/audio_ctrl.h"
-#include "platform/config_manager.h"
+#include "utils/config_manager.h"
 #include "views/custom_msgbox.h"
-#include "platform/config_manager.h"
+#include "platform/hw_screen.h"
+#include "utils/lv_utils.h"
 
 static void btn_demo_click(lv_event_t * e);
 static void btn_about_click(lv_event_t * e);
@@ -23,6 +24,7 @@ static void slider_brightness_changed(lv_event_t * e);
 static void slider_brightness_set(lv_event_t * e);
 static void slider_volume_changed(lv_event_t * e);
 static void slider_volume_set(lv_event_t * e);
+static void switch_ignore_file_risk_set(lv_event_t * e);
 
 lv_obj_t * page_settings_main(void)
 {
@@ -47,8 +49,11 @@ lv_obj_t * page_settings_main(void)
     lv_obj_center(btn_back_label);
     lv_obj_add_event_cb(btn_back, btn_back_click, LV_EVENT_CLICKED, NULL);
 
+    // 亮度
     lv_obj_t * label_brightness = lv_label_create(container);
+    lv_label_set_long_mode(label_brightness, LV_LABEL_LONG_WRAP);
     lv_label_set_text(label_brightness, "亮度");
+    lv_obj_set_size(label_brightness, lv_pct(100), LV_SIZE_CONTENT);
     lv_obj_t * slider_brightness = lv_slider_create(container);
 	lv_obj_set_size(slider_brightness, lv_pct(80), lv_pct(10));
     lv_obj_set_style_translate_x(slider_brightness, lv_obj_get_width_pct(container, 5), LV_STATE_DEFAULT);
@@ -57,8 +62,11 @@ lv_obj_t * page_settings_main(void)
 	lv_obj_add_event_cb(slider_brightness, slider_brightness_changed, LV_EVENT_VALUE_CHANGED, NULL);
 	lv_obj_add_event_cb(slider_brightness, slider_brightness_set, LV_EVENT_RELEASED, NULL);
 
+    // 音量
     lv_obj_t * label_volume = lv_label_create(container);
+    lv_label_set_long_mode(label_volume, LV_LABEL_LONG_WRAP);
     lv_label_set_text(label_volume, "音量");
+    lv_obj_set_size(label_volume, lv_pct(100), LV_SIZE_CONTENT);
     lv_obj_t * slider_volume = lv_slider_create(container);
 	lv_obj_set_size(slider_volume, lv_pct(80), lv_pct(10));
     lv_obj_set_style_translate_x(slider_volume, lv_obj_get_width_pct(container, 5), LV_STATE_DEFAULT);
@@ -82,6 +90,22 @@ lv_obj_t * page_settings_main(void)
     lv_label_set_text(btn_label_upgrade, "软件更新");
     lv_obj_center(btn_label_upgrade);
     lv_obj_add_event_cb(btn_upgrade, btn_upgrade_click, LV_EVENT_CLICKED, NULL);
+
+    // 允许危险文件操作
+    bool ignore_file_risk = false;
+    config_read_bool(CFG_FILE_MAIN, CFG_FILEMGR_IGNORE_RISK, false, &ignore_file_risk);
+
+    lv_obj_t * label_ignore_file_risk = lv_label_create(container);
+    lv_label_set_long_mode(label_ignore_file_risk, LV_LABEL_LONG_WRAP);
+    lv_label_set_text(label_ignore_file_risk, "Allow Dangerous File Operations");
+    lv_obj_set_size(label_ignore_file_risk, lv_pct(100), LV_SIZE_CONTENT);
+
+    lv_obj_t * switch_ignore_file_risk = lv_switch_create(container);
+    lv_obj_set_style_translate_x(switch_ignore_file_risk, lv_obj_get_width_pct(container, 5), LV_STATE_DEFAULT);
+    if (ignore_file_risk) lv_obj_add_state(switch_ignore_file_risk, LV_STATE_CHECKED);
+    else lv_obj_clear_state(switch_ignore_file_risk, LV_STATE_CHECKED);
+    lv_obj_add_event_cb(switch_ignore_file_risk, switch_ignore_file_risk_set, LV_EVENT_VALUE_CHANGED, NULL);
+
 
     lv_obj_t * btn_demo = lv_btn_create(container);
     lv_obj_set_size(btn_demo, lv_pct(64), lv_pct(32));
@@ -162,6 +186,13 @@ static void slider_volume_set(lv_event_t * e)
     lv_obj_t * slider = lv_event_get_target(e);
     int value = lv_slider_get_value(slider);
     config_write_int(CFG_FILE_MAIN, CFG_VOLUME, value);
+}
+
+static void switch_ignore_file_risk_set(lv_event_t * e)
+{
+    lv_obj_t * sw = lv_event_get_target(e);
+    bool ignore_file_risk = lv_obj_has_state(sw, LV_STATE_CHECKED);
+    config_write_bool(CFG_FILE_MAIN, CFG_FILEMGR_IGNORE_RISK, ignore_file_risk);
 }
 
 static void btn_back_click(lv_event_t * e)

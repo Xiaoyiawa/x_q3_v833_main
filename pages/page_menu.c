@@ -16,6 +16,7 @@ static void btn_demo_click(lv_event_t * e);
 static void btn_back_click(lv_event_t * e);
 static void btn_file_manager_click(lv_event_t * e);
 static void btn_calculator_click(lv_event_t * e);
+static void btn_recorder_click(lv_event_t * e);
 static void btn_bird_click(lv_event_t * e);
 static void btn_2048_click(lv_event_t * e);
 static void btn_ftp_click(lv_event_t * e);
@@ -145,12 +146,17 @@ static void btn_back_click(lv_event_t * e)
 
 static void btn_file_manager_click(lv_event_t * e)
 {
-    page_open(page_file_manager_create());
+    page_open(page_file_manager_create(NULL));
 }
 
 static void btn_calculator_click(lv_event_t * e)
 {
     page_open_obj(page_calc());
+}
+
+static void btn_recorder_click(lv_event_t * e)
+{
+    page_open(recorder_page_create());
 }
 
 static void btn_bird_click(lv_event_t * e)
@@ -177,11 +183,6 @@ static void btn_demo_click(lv_event_t * e)
 {
     page_open(demo_page_create());
 }
-static void btn_recorder_click(lv_event_t * e)
-{
-    page_open(recorder_page_create());
-}
-
 static void btn_led_click(lv_event_t * e)
 {
     page_open(page_led_create());

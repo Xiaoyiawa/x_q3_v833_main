@@ -1,6 +1,7 @@
 #include "page_ai.h"
 #include "../cJSON/cJSON.h"
 #include "views/ime_helper.h"
+#include "views/custom_msgbox.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,9 +9,12 @@
 #include <curl/curl.h>
 #include <dirent.h>
 #include <unistd.h>
+#include <time.h>
+#include <errno.h>
 
 /* ==================== 常量 ==================== */
 #define CONFIG_DIR      "./setting/ai_config/"
+#define SAVE_DIR        "./save_text/"
 #define SCREEN_W        240
 #define SCREEN_H        240
 
@@ -23,7 +27,7 @@
 #define CHAT_Y          (TOP_BAR_H)
 #define CHAT_H_NORMAL   (SCREEN_H - TOP_BAR_H - BOT_BAR_H)
 
-#define CURL_BUFFER_SIZE (4 * 1024 * 1024)
+#define CURL_INIT_BUFFER_SIZE (8 * 1024)
 #define MAX_AI_BUFFER_SIZE (4 * 1024 * 1024)
 
 /* ==================== 配置项 ==================== */
@@ -34,7 +38,6 @@ typedef struct {
     char api_key[128];
     char model[64];
     char system_prompt[512];
-    int  max_tokens;
     float temperature;
     float top_p;
     char response_format_type[32];
@@ -51,7 +54,6 @@ static char g_api_url[256]    = "";
 static char g_api_key[128]    = "";
 static char g_model[64]       = "";
 static char g_system_prompt[512] = "";
-static int  g_max_tokens      = 0;
 static float g_temperature    = -1.0f;
 static float g_top_p          = -1.0f;
 static char  g_response_format_type[32] = "";
@@ -88,6 +90,7 @@ static int g_async_pending = 0;
 static void ai_back_cb(lv_event_t *e);
 static void send_cb(lv_event_t *e);
 static void dropdown_cb(lv_event_t *e);
+static void chat_save_long_press_cb(lv_event_t *e);
 static void scroll_bottom(void);
 static void set_waiting(bool w);
 static void *api_thread(void *arg);
@@ -149,7 +152,6 @@ static int scan_configs(void) {
         const cJSON *url   = cJSON_GetObjectItem(root, "api_url");
         const cJSON *model = cJSON_GetObjectItem(root, "model");
         const cJSON *sp    = cJSON_GetObjectItem(root, "system_prompt");
-        const cJSON *max_tokens = cJSON_GetObjectItem(root, "max_tokens");
         const cJSON *temperature = cJSON_GetObjectItem(root, "temperature");
         const cJSON *top_p = cJSON_GetObjectItem(root, "top_p");
         const cJSON *rf = cJSON_GetObjectItem(root, "response_format");
@@ -177,7 +179,6 @@ static int scan_configs(void) {
             snprintf(ci->model, sizeof(ci->model), "%s", model->valuestring);
             if (sp && cJSON_IsString(sp))
                 snprintf(ci->system_prompt, sizeof(ci->system_prompt), "%s", sp->valuestring);
-            if (max_tokens && cJSON_IsNumber(max_tokens)) ci->max_tokens = max_tokens->valueint;
             if (temperature && cJSON_IsNumber(temperature)) ci->temperature = (float)temperature->valuedouble;
             if (top_p && cJSON_IsNumber(top_p)) ci->top_p = (float)top_p->valuedouble;
             if (rf && cJSON_IsObject(rf)) {
@@ -204,7 +205,6 @@ static void load_config_by_index(int idx) {
     if (idx < 0 || idx >= g_config_count || !g_configs[idx].valid) {
         printf("[AI] Invalid config index %d, clearing global settings\n", idx);
         g_api_url[0] = g_api_key[0] = g_model[0] = g_system_prompt[0] = '\0';
-        g_max_tokens = 0;
         g_temperature = -1.0f;
         g_top_p = -1.0f;
         g_response_format_type[0] = '\0';
@@ -216,7 +216,6 @@ static void load_config_by_index(int idx) {
     snprintf(g_api_key, sizeof(g_api_key), "%s", ci->api_key);
     snprintf(g_model, sizeof(g_model), "%s", ci->model);
     snprintf(g_system_prompt, sizeof(g_system_prompt), "%s", ci->system_prompt);
-    g_max_tokens = ci->max_tokens;
     g_temperature = ci->temperature;
     g_top_p = ci->top_p;
     snprintf(g_response_format_type, sizeof(g_response_format_type), "%s", ci->response_format_type);
@@ -318,6 +317,7 @@ BasePage *page_ai_create(void) {
     lv_obj_set_style_border_color(page->chat_container, lv_color_hex(0x888888), 0);
     lv_obj_set_flex_flow(page->chat_container, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_scrollbar_mode(page->chat_container, LV_SCROLLBAR_MODE_AUTO);
+    lv_obj_add_event_cb(page->chat_container, chat_save_long_press_cb, LV_EVENT_LONG_PRESSED, NULL);
 
     /* 发送按钮 */
     page->send_btn = lv_btn_create(scr);
@@ -429,6 +429,58 @@ static void send_cb(lv_event_t *e) {
     }
 }
 
+/* ==================== 长按保存对话 ==================== */
+static void chat_save_long_press_cb(lv_event_t *e) {
+    (void)e;
+    if (!g_page || !g_page->chat_container) return;
+
+    char model[64];
+    const char *src = g_model[0] ? g_model : "ai";
+    size_t j = 0;
+    for (size_t i = 0; src[i] != '\0' && j < sizeof(model) - 1; i++) {
+        char c = src[i];
+        if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+            (c >= '0' && c <= '9') || c == '.' || c == '_' || c == '-') {
+            model[j++] = c;
+        } else {
+            model[j++] = '_';
+        }
+    }
+    model[j] = '\0';
+
+    char timestr[32];
+    time_t now = time(NULL);
+    struct tm *tm_info = localtime(&now);
+    if (!tm_info || strftime(timestr, sizeof(timestr), "%Y-%m-%d-%H-%M", tm_info) == 0) {
+        strcpy(timestr, "unknown-time");
+    }
+
+    char path[256];
+    snprintf(path, sizeof(path), "%s%s-%s.txt", SAVE_DIR, model, timestr);
+
+    FILE *f = fopen(path, "wb");
+    if (!f) {
+        printf("[AI] fopen %s failed: %s\n", path, strerror(errno));
+        custom_toast_create("保存失败");
+        return;
+    }
+
+    uint32_t cnt = lv_obj_get_child_cnt(g_page->chat_container);
+    for (uint32_t i = 0; i < cnt; i++) {
+        lv_obj_t *child = lv_obj_get_child(g_page->chat_container, i);
+        if (!child || !lv_obj_check_type(child, &lv_label_class)) continue;
+        const char *txt = lv_label_get_text(child);
+        if (!txt) continue;
+        if (strncmp(txt, "You: ", 5) != 0 && strncmp(txt, "AI: ", 4) != 0) continue;
+        fputs(txt, f);
+        fputc('\n', f);
+    }
+    fclose(f);
+
+    printf("[AI] Saved conversation to %s\n", path);
+    custom_toast_create("信息已保存");
+}
+
 /* ==================== 聊天操作 ==================== */
 static void add_message(const char *text, lv_color_t color) {
     if (!g_page || !g_page->chat_container) return;
@@ -496,40 +548,51 @@ static void finish_ai_message(void) {
 
 /* ==================== 队列操作 ==================== */
 static void enqueue_chunk(const char *chunk) {
-    if (!chunk) return;
+    if (!chunk || chunk[0] == '\0') return;
+
     pthread_mutex_lock(&g_queue_mutex);
 
     chunk_node_t *node = malloc(sizeof(chunk_node_t));
-    node->data = strdup(chunk);
-    node->next = NULL;
-    if (g_queue_tail) {
-        g_queue_tail->next = node;
-        g_queue_tail = node;
-    } else {
-        g_queue_head = g_queue_tail = node;
+    if (!node) {
+        pthread_mutex_unlock(&g_queue_mutex);
+        return;
     }
+    node->data = strdup(chunk);
+    if (!node->data) {
+        free(node);
+        pthread_mutex_unlock(&g_queue_mutex);
+        return;
+    }
+    node->next = NULL;
+    if (g_queue_tail) g_queue_tail->next = node;
+    else             g_queue_head = node;
+    g_queue_tail = node;
     g_queue_len++;
 
-    if (!g_async_pending) {
-        g_async_pending = 1;
+    bool need_schedule = !g_async_pending;
+    if (need_schedule) g_async_pending = 1;
+
+    pthread_mutex_unlock(&g_queue_mutex);
+
+    if (need_schedule) {
         lv_async_call((lv_async_cb_t)process_queue, NULL);
     }
-    pthread_mutex_unlock(&g_queue_mutex);
 }
 
 static void clear_queue(void) {
     pthread_mutex_lock(&g_queue_mutex);
     chunk_node_t *node = g_queue_head;
+    g_queue_head = g_queue_tail = NULL;
+    g_queue_len = 0;
+    g_async_pending = 0;
+    pthread_mutex_unlock(&g_queue_mutex);
+
     while (node) {
         chunk_node_t *next = node->next;
         free(node->data);
         free(node);
         node = next;
     }
-    g_queue_head = g_queue_tail = NULL;
-    g_queue_len = 0;
-    g_async_pending = 0;
-    pthread_mutex_unlock(&g_queue_mutex);
 }
 
 static void process_queue(void) {
@@ -540,21 +603,32 @@ static void process_queue(void) {
     g_async_pending = 0;
     pthread_mutex_unlock(&g_queue_mutex);
 
+    if (!head) return;
+
+    if (g_page && g_page->ai_accumulated && g_page->ai_label) {
+        size_t total = 0;
+        for (chunk_node_t *n = head; n; n = n->next) {
+            if (n->data) total += strlen(n->data);
+        }
+
+        size_t current_len = strlen(g_page->ai_accumulated);
+        if (total > 0 && current_len + total < MAX_AI_BUFFER_SIZE) {
+            char *dst = g_page->ai_accumulated + current_len;
+            for (chunk_node_t *n = head; n; n = n->next) {
+                if (!n->data) continue;
+                size_t len = strlen(n->data);
+                memcpy(dst, n->data, len);
+                dst += len;
+            }
+            *dst = '\0';
+            update_ai_message(g_page->ai_accumulated);
+        } else if (total > 0) {
+            printf("[AI] Warning: AI buffer overflow, discarding %zu bytes\n", total);
+        }
+    }
+
     chunk_node_t *node = head;
     while (node) {
-        if (node->data) {
-            if (g_page && g_page->ai_accumulated) {
-                size_t current_len = strlen(g_page->ai_accumulated);
-                size_t add_len = strlen(node->data);
-                if (current_len + add_len < MAX_AI_BUFFER_SIZE) {
-                    memcpy(g_page->ai_accumulated + current_len, node->data, add_len + 1);
-                    update_ai_message(g_page->ai_accumulated);
-                } else {
-                    printf("[AI] Warning: AI buffer overflow, discarding chunk\n");
-                }
-            }
-            printf("[AI] Chunk: %s\n", node->data);
-        }
         chunk_node_t *next = node->next;
         free(node->data);
         free(node);
@@ -562,130 +636,84 @@ static void process_queue(void) {
     }
 }
 
-/* ==================== curl 回调（动态扩容，初始 4MB） ==================== */
-static size_t curl_write_cb(void *ptr, size_t size, size_t nmemb, void *userdata) {
-    size_t total = size * nmemb;
-    char *data = (char*)ptr;
-    static char *buffer = NULL;
-    static size_t buf_len = 0;
-    static size_t buf_cap = 0;
+/* ==================== curl 回调（动态分配，按需扩容） ==================== */
+typedef struct {
+    char  *buf;
+    size_t len;
+    size_t cap;
+} CurlBuffer;
 
-    // 初始化缓冲区（4MB）
-    if (!buffer) {
-        buffer = malloc(CURL_BUFFER_SIZE);
-        if (!buffer) return 0;
-        buf_cap = CURL_BUFFER_SIZE;
-        buf_len = 0;
+static void handle_sse_data(const char *payload) {
+    if (strcmp(payload, "[DONE]") == 0) {
+        lv_async_call((lv_async_cb_t)finish_ai_message, NULL);
+        return;
     }
 
-    // 扩容
-    if (buf_len + total > buf_cap) {
-        size_t new_cap = buf_cap * 2;
-        if (new_cap < buf_len + total) new_cap = buf_len + total + 4096;
-        char *new_buf = realloc(buffer, new_cap);
+    cJSON *root = cJSON_Parse(payload);
+    if (!root) {
+        printf("[AI] Failed to parse JSON chunk: %s\n", payload);
+        return;
+    }
+
+    cJSON *choices = cJSON_GetObjectItem(root, "choices");
+    if (cJSON_IsArray(choices) && cJSON_GetArraySize(choices) > 0) {
+        cJSON *first = cJSON_GetArrayItem(choices, 0);
+        cJSON *delta = cJSON_GetObjectItem(first, "delta");
+        cJSON *content = cJSON_GetObjectItem(delta, "content");
+        if (cJSON_IsString(content) && content->valuestring) {
+            enqueue_chunk(content->valuestring);
+        }
+    }
+    cJSON_Delete(root);
+}
+
+static void handle_sse_block(char *block) {
+    char *save = NULL;
+    for (char *line = strtok_r(block, "\n", &save); line; line = strtok_r(NULL, "\n", &save)) {
+        while (*line == '\r') line++;
+        if (strncmp(line, "data:", 5) != 0) continue;
+        char *payload = line + 5;
+        while (*payload == ' ') payload++;
+        handle_sse_data(payload);
+    }
+}
+
+static size_t curl_write_cb(void *ptr, size_t size, size_t nmemb, void *userdata) {
+    CurlBuffer *ctx = (CurlBuffer *)userdata;
+    if (!ctx || (size != 0 && nmemb > (size_t)-1 / size)) return 0;
+
+    size_t total = size * nmemb;
+
+    if (ctx->len + total + 1 > ctx->cap) {
+        size_t new_cap = ctx->cap ? ctx->cap : CURL_INIT_BUFFER_SIZE;
+        while (new_cap < ctx->len + total + 1) new_cap *= 2;
+        char *new_buf = realloc(ctx->buf, new_cap);
         if (!new_buf) {
-            printf("[AI] curl buffer realloc failed, dropping data\n");
+            printf("[AI] curl buffer realloc failed, dropping %zu bytes\n", total);
             return total;
         }
-        buffer = new_buf;
-        buf_cap = new_cap;
+        ctx->buf = new_buf;
+        ctx->cap = new_cap;
     }
 
-    // 追加新数据
-    memcpy(buffer + buf_len, data, total);
-    buf_len += total;
-    buffer[buf_len] = '\0';
+    memcpy(ctx->buf + ctx->len, ptr, total);
+    ctx->len += total;
+    ctx->buf[ctx->len] = '\0';
 
-    char *line_start = buffer;
-    char *line_end;
-
-    // 主解析循环：按 \n\n 分隔
-    while ((line_end = strstr(line_start, "\n\n")) != NULL) {
-        *line_end = '\0';
-        char *sse_line = line_start;
-        while (*sse_line == '\n' || *sse_line == '\r') sse_line++;
-        if (*sse_line != '\0') {
-            if (strncmp(sse_line, "data: ", 6) == 0) {
-                const char *json_str = sse_line + 6;
-                if (strcmp(json_str, "[DONE]") == 0) {
-                    printf("[AI] Received [DONE], processing remaining data\n");
-                    // 处理缓冲区中剩余的所有数据（按行分割）
-                    char *rem = line_end + 2;
-                    while (rem < buffer + buf_len) {
-                        char *next = strchr(rem, '\n');
-                        if (next) *next = '\0';
-                        char *sse_line2 = rem;
-                        while (*sse_line2 == '\n' || *sse_line2 == '\r') sse_line2++;
-                        if (*sse_line2 != '\0' && strncmp(sse_line2, "data: ", 6) == 0) {
-                            const char *json_str2 = sse_line2 + 6;
-                            if (strcmp(json_str2, "[DONE]") != 0) {
-                                cJSON *root = cJSON_Parse(json_str2);
-                                if (root) {
-                                    cJSON *choices = cJSON_GetObjectItem(root, "choices");
-                                    if (cJSON_IsArray(choices) && cJSON_GetArraySize(choices) > 0) {
-                                        cJSON *first = cJSON_GetArrayItem(choices, 0);
-                                        cJSON *delta = cJSON_GetObjectItem(first, "delta");
-                                        cJSON *content = cJSON_GetObjectItem(delta, "content");
-                                        if (cJSON_IsString(content) && content->valuestring) {
-                                            char *chunk = strdup(content->valuestring);
-                                            printf("[AI] Final chunk: %s\n", chunk);
-                                            enqueue_chunk(chunk);
-                                            free(chunk);
-                                        }
-                                    }
-                                    cJSON_Delete(root);
-                                }
-                            }
-                        }
-                        if (next) {
-                            rem = next + 1;
-                        } else {
-                            break;
-                        }
-                    }
-                    // 清空缓冲区
-                    buf_len = 0;
-                    buffer[0] = '\0';
-                    // 直接调用 finish_ai_message（会触发 process_queue 显示全部内容）
-                    lv_async_call((lv_async_cb_t)finish_ai_message, NULL);
-                    return total;
-                } else {
-                    // 普通 chunk
-                    cJSON *root = cJSON_Parse(json_str);
-                    if (root) {
-                        cJSON *choices = cJSON_GetObjectItem(root, "choices");
-                        if (cJSON_IsArray(choices) && cJSON_GetArraySize(choices) > 0) {
-                            cJSON *first = cJSON_GetArrayItem(choices, 0);
-                            cJSON *delta = cJSON_GetObjectItem(first, "delta");
-                            cJSON *content = cJSON_GetObjectItem(delta, "content");
-                            if (cJSON_IsString(content) && content->valuestring) {
-                                char *chunk = strdup(content->valuestring);
-                                int len = strlen(chunk);
-                                printf("[AI] Received chunk: %.*s%s\n",
-                                       len>20?20:len, chunk, len>20?"..." : "");
-                                enqueue_chunk(chunk);
-                                free(chunk);
-                            }
-                        }
-                        cJSON_Delete(root);
-                    } else {
-                        printf("[AI] Failed to parse JSON chunk: %s\n", json_str);
-                    }
-                }
-            }
-        }
-        line_start = line_end + 2;
-        if (line_start >= buffer + buf_len) break;
+    char *line_start = ctx->buf;
+    char *sep;
+    while ((sep = strstr(line_start, "\n\n")) != NULL) {
+        *sep = '\0';
+        handle_sse_block(line_start);
+        line_start = sep + 2;
     }
 
-    // 保留剩余未处理的数据到下次调用
-    if (line_start < buffer + buf_len) {
-        memmove(buffer, line_start, buffer + buf_len - line_start);
-        buf_len = buffer + buf_len - line_start;
-    } else {
-        buf_len = 0;
+    size_t remain = ctx->len - (size_t)(line_start - ctx->buf);
+    if (remain > 0 && line_start != ctx->buf) {
+        memmove(ctx->buf, line_start, remain);
     }
-    buffer[buf_len] = '\0';
+    ctx->len = remain;
+    ctx->buf[ctx->len] = '\0';
 
     return total;
 }
@@ -714,6 +742,7 @@ static void on_api_response_ui_cb(void *data) {
 /* ==================== API 请求线程 ==================== */
 static void *api_thread(void *arg) {
     char *prompt = (char *)arg;
+    CurlBuffer buf = {0};
     CURL *curl = curl_easy_init();
     if (!curl) {
         printf("[AI] curl_easy_init failed\n");
@@ -749,7 +778,6 @@ static void *api_thread(void *arg) {
     cJSON_AddStringToObject(usr, "content", prompt);
     cJSON_AddItemToArray(messages, usr);
 
-    if (g_max_tokens > 0) cJSON_AddNumberToObject(root, "max_tokens", g_max_tokens);
     if (g_temperature >= 0.0f) cJSON_AddNumberToObject(root, "temperature", g_temperature);
     if (g_top_p >= 0.0f) cJSON_AddNumberToObject(root, "top_p", g_top_p);
     if (g_response_format_type[0]) {
@@ -773,10 +801,12 @@ static void *api_thread(void *arg) {
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body_str);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write_cb);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, NULL);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &buf);
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L);
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 15L);
+    curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, 1L);
+    curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, 30L);
 
     lv_async_call((lv_async_cb_t)add_ai_message_start, NULL);
 
@@ -816,6 +846,7 @@ static void *api_thread(void *arg) {
     curl_slist_free_all(headers);
     free(body_str);
     curl_easy_cleanup(curl);
+    free(buf.buf);
     free(prompt);
 
     return NULL;
@@ -824,7 +855,12 @@ static void *api_thread(void *arg) {
 /* ==================== 滚动 ==================== */
 static void scroll_bottom(void) {
     if (!g_page || !g_page->chat_container) return;
-    lv_obj_scroll_to_y(g_page->chat_container, LV_COORD_MAX, LV_ANIM_OFF);
+    lv_obj_t *cont = g_page->chat_container;
+    lv_obj_update_layout(cont);
+    lv_coord_t bottom = lv_obj_get_scroll_bottom(cont);
+    if (bottom > 0) {
+        lv_obj_scroll_by(cont, 0, -bottom, LV_ANIM_OFF);
+    }
 }
 
 /* ==================== 设置等待状态 ==================== */

@@ -1,5 +1,11 @@
 #include "page_audio.h"
 
+#include "main.h"
+#include "ff_player.h"
+#include "audio_ctrl.h"
+#include "lv_text_clock.h"
+#include "battery_manager.h"
+
 typedef struct
 {
     BasePage base;
@@ -47,9 +53,8 @@ static lv_obj_t * page_audio_obj(AudioPage * page, char * filename)
     page->cycle = false;
     audio_enable();
 
-    ff_player_t * player = player_create();
+    ff_player_t * player = player_create(&mutex_graph);
     if(player_open(player, filename) == 0 && player_init_audio(player) == 0) {
-        player_resume(player);
         player_set_finish_callback(player, player_finished, page);
         page->player = player;
     } else {
@@ -136,6 +141,8 @@ static lv_obj_t * page_audio_obj(AudioPage * page, char * filename)
 
     // 电量的定时器用timer_tick的（
     page->timer = lv_timer_create(timer_tick, 250, page);
+
+    if (player) player_resume(player);
 
     return screen;
 }

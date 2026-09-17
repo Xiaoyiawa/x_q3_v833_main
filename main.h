@@ -14,17 +14,11 @@ extern "C" {
 #include <sys/types.h>
 #include <stdbool.h>
 #include "lvgl/lvgl.h"
+#include "dendro_conf.h"
 
 /*********************
  *      DEFINES
  *********************/
-#define PATH_MAX_LENGTH 1024
-#define SCREEN_TIMEOUT_MS 30000
-#define THEME_COLOR 0xff78c05d
-#define TIMIDITY_CFG_DEFAULT "/mnt/app/dendro/midi/timidity.cfg"
-#define CPU_POWER_CTRL_ENABLED 0
-#define TOUCH_REVERSE_X_DEFAULT false
-#define TOUCH_REVERSE_Y_DEFAULT false
 
 /**********************
  *      TYPEDEFS
@@ -40,6 +34,7 @@ extern uint32_t ts_background;
 
 extern uint8_t dont_deep_sleep_enabled;
 extern uint8_t dont_timeout_enabled;
+extern pthread_mutex_t mutex_graph;
 
 void sys_sleep(void);
 void sys_wake(void);
